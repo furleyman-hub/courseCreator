@@ -1,9 +1,3 @@
-import json
-import os
-from typing import Any, Dict, Optional
-
-from openai import OpenAI
-
 from backend.models.types import (
     ClassOutline,
     ClassOutlineSection,
@@ -15,39 +9,9 @@ from backend.models.types import (
     VideoScriptSegment,
 )
 
-DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
-
-def _get_client(api_key: Optional[str]) -> Optional[OpenAI]:
-    key = api_key or os.getenv("OPENAI_API_KEY")
-    if not key:
-        return None
-    return OpenAI(api_key=key)
-
-
-def _structured_completion(system_prompt: str, user_prompt: str, api_key: Optional[str]) -> Optional[Dict[str, Any]]:
-    client = _get_client(api_key)
-    if not client:
-        return None
-
-    try:
-        completion = client.chat.completions.create(
-            model=DEFAULT_MODEL,
-            temperature=0.35,
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-        )
-        content = completion.choices[0].message.content or "{}"
-        return json.loads(content)
-    except Exception:
-        # Fail soft and allow fallback templates
-        return None
-
-
-def _outline_fallback(course_title: str) -> ClassOutline:
+def generate_class_outline(text: str, course_title: str) -> ClassOutline:
+    # TODO: Swap with real LLM call
     sections = [
         ClassOutlineSection(
             title="Introduction",
@@ -63,7 +27,7 @@ def _outline_fallback(course_title: str) -> ClassOutline:
     return ClassOutline(title=course_title, sections=sections)
 
 
-def _instructor_fallback(course_title: str) -> InstructorGuide:
+def generate_instructor_guide(text: str, course_title: str) -> InstructorGuide:
     sections = [
         InstructorGuideSection(
             title="Kickoff",
@@ -83,7 +47,7 @@ def _instructor_fallback(course_title: str) -> InstructorGuide:
     return InstructorGuide(courseTitle=course_title, sections=sections)
 
 
-def _video_fallback(course_title: str) -> VideoScript:
+def generate_video_script(text: str, course_title: str) -> VideoScript:
     segments = [
         VideoScriptSegment(
             title="Scene 1 - Overview",
@@ -101,7 +65,7 @@ def _video_fallback(course_title: str) -> VideoScript:
     return VideoScript(courseTitle=course_title, segments=segments)
 
 
-def _qrg_fallback(course_title: str) -> QuickReferenceGuide:
+def generate_quick_reference(text: str, course_title: str) -> QuickReferenceGuide:
     steps = [
         QuickReferenceStep(
             stepNumber=1,
@@ -117,80 +81,3 @@ def _qrg_fallback(course_title: str) -> QuickReferenceGuide:
         ),
     ]
     return QuickReferenceGuide(courseTitle=course_title, steps=steps)
-
-
-def generate_class_outline(
-    text: str, course_title: str, class_type: str, api_key: Optional[str] = None
-) -> ClassOutline:
-    system = """You are an instructional designer creating a concise, structured class outline.
-Return JSON with keys: title (string) and sections (list of {title, objectives [strings], durationMinutes number})."""
-    user = (
-        f"Course title: {course_title}\n"
-        f"Class type: {class_type}\n"
-        f"Source text:\n{text}"
-    )
-
-    parsed = _structured_completion(system, user, api_key)
-    if parsed:
-        try:
-            return ClassOutline.parse_obj(parsed)
-        except Exception:
-            pass
-    return _outline_fallback(course_title)
-
-
-def generate_instructor_guide(
-    text: str, course_title: str, class_type: str, api_key: Optional[str] = None
-) -> InstructorGuide:
-    system = """You are creating an instructor guide. Return JSON with keys: courseTitle, sections (list of {title, learningObjectives [strings], talkingPoints [strings], suggestedActivities [strings], timingMinutes number})."""
-    user = (
-        f"Course title: {course_title}\n"
-        f"Class type: {class_type}\n"
-        f"Source text:\n{text}"
-    )
-
-    parsed = _structured_completion(system, user, api_key)
-    if parsed:
-        try:
-            return InstructorGuide.parse_obj(parsed)
-        except Exception:
-            pass
-    return _instructor_fallback(course_title)
-
-
-def generate_video_script(
-    text: str, course_title: str, class_type: str, api_key: Optional[str] = None
-) -> VideoScript:
-    system = """You are writing a training video script. Return JSON with keys: courseTitle, segments (list of {title, narration, screenDirections, durationSeconds number})."""
-    user = (
-        f"Course title: {course_title}\n"
-        f"Class type: {class_type}\n"
-        f"Source text:\n{text}"
-    )
-
-    parsed = _structured_completion(system, user, api_key)
-    if parsed:
-        try:
-            return VideoScript.parse_obj(parsed)
-        except Exception:
-            pass
-    return _video_fallback(course_title)
-
-
-def generate_quick_reference(
-    text: str, course_title: str, class_type: str, api_key: Optional[str] = None
-) -> QuickReferenceGuide:
-    system = """You are drafting a concise quick reference guide. Return JSON with keys: courseTitle, steps (list of {stepNumber, title, action, notes})."""
-    user = (
-        f"Course title: {course_title}\n"
-        f"Class type: {class_type}\n"
-        f"Source text:\n{text}"
-    )
-
-    parsed = _structured_completion(system, user, api_key)
-    if parsed:
-        try:
-            return QuickReferenceGuide.parse_obj(parsed)
-        except Exception:
-            pass
-    return _qrg_fallback(course_title)
