@@ -115,7 +115,6 @@ st.sidebar.header("Settings")
 st.sidebar.write("Set the backend API base URL (FastAPI app).")
 backend_url = st.sidebar.text_input("Backend URL", BACKEND_URL)
 st.sidebar.caption("Defaults to http://localhost:8000")
-openai_api_key = st.sidebar.text_input("OpenAI API Key", type="password", help="Not stored; used only for this session.")
 
 st.markdown("---")
 
@@ -162,7 +161,6 @@ if submitted:
                         "extractedText": upload_data.get("extractedText", ""),
                         "courseTitle": course_title,
                         "classType": class_type,
-                        "openaiApiKey": openai_api_key,
                     },
                     timeout=120,
                 )

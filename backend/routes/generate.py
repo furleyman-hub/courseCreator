@@ -14,6 +14,10 @@ async def generate_package(payload: GenerateRequest):
         instructor = llm.generate_instructor_guide(payload.extractedText, payload.courseTitle, payload.openaiApiKey)
         video = llm.generate_video_script(payload.extractedText, payload.courseTitle, payload.openaiApiKey)
         qrg = llm.generate_quick_reference(payload.extractedText, payload.courseTitle, payload.openaiApiKey)
+        outline = llm.generate_class_outline(payload.extractedText, payload.courseTitle)
+        instructor = llm.generate_instructor_guide(payload.extractedText, payload.courseTitle)
+        video = llm.generate_video_script(payload.extractedText, payload.courseTitle)
+        qrg = llm.generate_quick_reference(payload.extractedText, payload.courseTitle)
         return GenerateResponse(
             classOutline=outline,
             instructorGuide=instructor,
