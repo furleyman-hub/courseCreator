@@ -8,29 +8,7 @@ from typing import Dict, List
 import requests
 import streamlit as st
 
-def resolve_backend_url() -> str:
-    """Pick the best available backend base URL.
-
-    Priority: Streamlit secrets > env var > localhost fallback. We also persist
-    the value in session state so user updates survive reruns.
-    """
-
-    if "backend_url" in st.session_state and st.session_state["backend_url"]:
-        return st.session_state["backend_url"]
-
-    from_secrets = st.secrets.get("backend_url") or st.secrets.get("BACKEND_URL")
-    if from_secrets:
-        st.session_state["backend_url"] = from_secrets
-        return from_secrets
-
-    from_env = os.getenv("BACKEND_URL")
-    if from_env:
-        st.session_state["backend_url"] = from_env
-        return from_env
-
-    fallback = "http://localhost:8000"
-    st.session_state["backend_url"] = fallback
-    return fallback
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 
 st.set_page_config(page_title="Training Package Generator", layout="wide")
 st.title("Training Package Generator")
@@ -135,9 +113,8 @@ def render_artifacts(artifacts: Dict):
 
 st.sidebar.header("Settings")
 st.sidebar.write("Set the backend API base URL (FastAPI app).")
-backend_url = st.sidebar.text_input("Backend URL", value=resolve_backend_url())
-st.sidebar.caption("Defaults to Streamlit secret BACKEND_URL, env BACKEND_URL, or http://localhost:8000")
-openai_api_key = st.sidebar.text_input("OpenAI API Key", type="password", help="Not stored; used only for this session.")
+backend_url = st.sidebar.text_input("Backend URL", BACKEND_URL)
+st.sidebar.caption("Defaults to http://localhost:8000")
 
 st.markdown("---")
 
@@ -184,7 +161,6 @@ if submitted:
                         "extractedText": upload_data.get("extractedText", ""),
                         "courseTitle": course_title,
                         "classType": class_type,
-                        "openaiApiKey": openai_api_key,
                     },
                     timeout=120,
                 )
