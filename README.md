@@ -11,6 +11,7 @@ backend/
   services/              # Extraction + LLM stubs
   models/                # Pydantic models
   uploads/               # Temporary upload storage
+streamlit_app.py         # Streamlit UI that calls the FastAPI backend
 frontend/
   index.html             # Vite entry HTML
   package.json           # Frontend dependencies and scripts
@@ -40,6 +41,14 @@ frontend/
    uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
    ```
 
+### Streamlit UI (alternative browser client)
+1. Ensure the backend is running (default `http://localhost:8000`).
+2. From the repo root, activate your backend virtualenv (or install the backend requirements globally) and start Streamlit:
+   ```bash
+   streamlit run streamlit_app.py
+   ```
+3. Open the provided local URL in your browser (e.g., `http://localhost:8501`). Use the sidebar to point to a different backend URL if needed.
+
 ### Frontend
 1. Install dependencies (Node 18+ recommended):
    ```bash
@@ -59,6 +68,7 @@ frontend/
 1. Enter a course title, choose a class type, and upload one or more files.
 2. Click **Generate Training Package**. The app uploads files, shows extracted text, and displays generated artifacts in tabs.
 3. Use **Copy to Clipboard** or **Download .md** to export each artifact.
+4. If you prefer Streamlit, run `streamlit run streamlit_app.py` and use the browser UI it provides instead of the Vite SPA.
 
 ## Notes
 - LLM calls are mocked via placeholder functions in `backend/services/llm.py`. Replace these with real API calls as needed.
