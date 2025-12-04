@@ -73,6 +73,8 @@ def _render_qrg(qrg: QuickReferenceGuide):
 
 st.set_page_config(page_title="Training Class Generator", layout="wide")
 st.title("Training Class Generator")
+st.write("🔧 DEBUG VERSION: v7 – if you don't see this on the page, you're not running this code.")
+
 st.write("Upload documents and audio to generate outlines, guides, scripts, and quick references.")
 
 course_title = st.text_input("Course Title", value="")
