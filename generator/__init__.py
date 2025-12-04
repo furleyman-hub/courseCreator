@@ -12,7 +12,7 @@ from .models import (
     VideoSegment,
 )
 from .audio_processing import synthesize_narration_audio, transcribe_audio_files
-from .llm_stub import (
+from .llm_openai import (
     generate_class_outline,
     generate_instructor_guide,
     generate_quick_reference,
