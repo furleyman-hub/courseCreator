@@ -8,7 +8,6 @@ from typing import Any, Dict, List
 
 import streamlit as st
 
-# Correct OpenAI exceptions for SDK 2.x
 from openai import (
     APIError,
     APIConnectionError,
@@ -28,45 +27,42 @@ from .models import (
     VideoScript,
     VideoSegment,
 )
-
 from .openai_client import MissingOpenAIKeyError, TEXT_MODEL, get_client
 
 
-# -------------------------------------------------------------------
+# ------------------------------------------------------
 # Helpers
-# -------------------------------------------------------------------
+# ------------------------------------------------------
 
 def _format_source_excerpt(full_text: str, limit: int = 6000) -> str:
-    """Shorten source text to keep prompts efficient."""
+    """Shortened excerpt of full text to keep prompts manageable."""
     if not full_text:
-        return "[No source text available.]"
+        return "[No source text supplied; rely on general instructional design best practices.]"
     return shorten(full_text, width=limit, placeholder="... [truncated]")
 
 
 def _call_json_response(system_prompt: str, user_prompt: str) -> Dict[str, Any]:
-    """
-    Generic wrapper for a JSON-only Responses API call.
-    Ensures we always return a Python dict.
-    """
+    """Call Chat Completions API in JSON mode and return parsed JSON."""
     client = get_client()
 
     try:
-        response = client.responses.create(
+        response = client.chat.completions.create(
             model=TEXT_MODEL,
-            input=[
+            messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
             response_format={"type": "json_object"},
         )
 
-        # Responses API helper for JSON text
-        return json.loads(response.output_text)
+        json_text = response.choices[0].message.content
+        return json.loads(json_text)
 
     except MissingOpenAIKeyError:
         raise
 
-    except (APIError, APIConnectionError, RateLimitError, AuthenticationError, BadRequestError, NotFoundError) as exc:
+    except (APIError, APIConnectionError, RateLimitError,
+            AuthenticationError, BadRequestError, NotFoundError) as exc:
         st.error(f"OpenAI API error: {exc}")
         raise
 
@@ -75,9 +71,9 @@ def _call_json_response(system_prompt: str, user_prompt: str) -> Dict[str, Any]:
         raise
 
 
-# -------------------------------------------------------------------
+# ------------------------------------------------------
 # Parsing helpers
-# -------------------------------------------------------------------
+# ------------------------------------------------------
 
 def _parse_outline(payload: Dict[str, Any], course_title: str, class_type: str) -> ClassOutline:
     sections_data = payload.get("sections", []) if isinstance(payload, dict) else []
@@ -97,10 +93,7 @@ def _parse_outline(payload: Dict[str, Any], course_title: str, class_type: str) 
             continue
 
     title = payload.get("title") if isinstance(payload, dict) else None
-    return ClassOutline(
-        title=title or f"{course_title} ({class_type})",
-        sections=sections,
-    )
+    return ClassOutline(title=title or f"{course_title} ({class_type})", sections=sections)
 
 
 def _parse_instructor_guide(payload: Dict[str, Any]) -> InstructorGuide:
@@ -164,21 +157,21 @@ def _parse_quick_reference(payload: Dict[str, Any]) -> QuickReferenceGuide:
     return QuickReferenceGuide(steps=steps)
 
 
-# -------------------------------------------------------------------
-# Main generator wrappers
-# -------------------------------------------------------------------
+# ------------------------------------------------------
+# Main LLM Functions
+# ------------------------------------------------------
 
 def generate_class_outline(full_text: str, course_title: str, class_type: str) -> ClassOutline:
     excerpt = _format_source_excerpt(full_text)
 
     system_prompt = (
-        "You are an instructional designer who produces clear, structured, actionable class outlines. "
+        "You are an instructional designer who produces concise, actionable class outlines. "
         "Always reply with JSON only."
     )
 
     user_prompt = (
         f"Create a ClassOutline JSON object for the course '{course_title}' ({class_type}).\n"
-        f"Use the following source text as guidance:\n{excerpt}\n\n"
+        f"Source text:\n{excerpt}\n\n"
         "Schema: {title: str, sections: [ {title, objectives: list[str], duration_minutes: int|null, subtopics: list[str]} ]}"
     )
 
@@ -198,13 +191,13 @@ def generate_instructor_guide(full_text: str, course_title: str, class_type: str
     excerpt = _format_source_excerpt(full_text)
 
     system_prompt = (
-        "You create detailed instructor guides that include learning objectives, talking points, activities, and time estimates. "
+        "You create detailed instructor guides with objectives, talking points, activities, and timing. "
         "Always reply with JSON only."
     )
 
     user_prompt = (
         f"Produce an InstructorGuide JSON for '{course_title}' ({class_type}).\n"
-        f"Use this source text:\n{excerpt}\n\n"
+        f"Source text:\n{excerpt}\n\n"
         "Schema: {sections: [ {title, learning_objectives, talking_points, suggested_activities, estimated_time_minutes} ]}"
     )
 
@@ -224,13 +217,12 @@ def generate_video_script(full_text: str, course_title: str, class_type: str) ->
     excerpt = _format_source_excerpt(full_text)
 
     system_prompt = (
-        "You write high-quality training video scripts with narration and precise screen directions. "
-        "Always reply with JSON only."
+        "You write video scripts with narration and precise screen directions. Always reply with JSON only."
     )
 
     user_prompt = (
         f"Draft a VideoScript JSON for '{course_title}' ({class_type}).\n"
-        f"Use this source text for context:\n{excerpt}\n\n"
+        f"Source text:\n{excerpt}\n\n"
         "Schema: {segments: [ {title, narration, screen_directions, approx_duration_seconds} ]}"
     )
 
@@ -250,13 +242,13 @@ def generate_quick_reference(full_text: str, course_title: str, class_type: str)
     excerpt = _format_source_excerpt(full_text)
 
     system_prompt = (
-        "You create concise, numbered quick reference guides (QRGs) with clear action steps. "
+        "You create succinct quick reference guides with numbered steps and optional notes. "
         "Always reply with JSON only."
     )
 
     user_prompt = (
         f"Produce a QuickReferenceGuide JSON for '{course_title}' ({class_type}).\n"
-        f"Use this source text:\n{excerpt}\n\n"
+        f"Source text:\n{excerpt}\n\n"
         "Schema: {steps: [ {step_number, title, action, notes} ]}"
     )
 
