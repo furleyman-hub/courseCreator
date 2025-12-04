@@ -1,66 +1,133 @@
-"""Markdown exporters for generated training artifacts."""
+"""Utilities for converting generated training materials to Markdown."""
 
 from __future__ import annotations
+from typing import List
 
-from .models import ClassOutline, InstructorGuide, QuickReferenceGuide, VideoScript
+from .models import (
+    ClassOutline,
+    InstructorGuide,
+    VideoScript,
+    QuickReferenceGuide,
+)
 
+
+# -------------------------------------------------------------------
+# Outline → Markdown
+# -------------------------------------------------------------------
 
 def outline_to_markdown(outline: ClassOutline) -> str:
-    lines = [f"# {outline.title}"]
+    md = [f"# {outline.title}", ""]
     for section in outline.sections:
-        lines.append(f"\n## {section.title}")
-        if section.objectives:
-            lines.append("**Objectives:**")
-            for obj in section.objectives:
-                lines.append(f"- {obj}")
-        if section.subtopics:
-            lines.append("**Subtopics:**")
-            for topic in section.subtopics:
-                lines.append(f"  - {topic}")
-        if section.duration_minutes is not None:
-            lines.append(f"**Duration:** {section.duration_minutes} minutes")
-    return "\n".join(lines)
+        md.append(f"## {section.title}")
 
+        if section.objectives:
+            md.append("**Objectives:**")
+            for obj in section.objectives:
+                md.append(f"- {obj}")
+            md.append("")
+
+        if section.subtopics:
+            md.append("**Subtopics:**")
+            for sub in section.subtopics:
+                md.append(f"- {sub}")
+            md.append("")
+
+        if section.duration_minutes:
+            md.append(f"**Estimated Time:** {section.duration_minutes} minutes")
+            md.append("")
+
+    return "\n".join(md).strip()
+
+
+# -------------------------------------------------------------------
+# Instructor Guide → Markdown
+# -------------------------------------------------------------------
 
 def instructor_guide_to_markdown(guide: InstructorGuide) -> str:
-    lines = ["# Instructor Guide"]
-    for section in guide.sections:
-        lines.append(f"\n## {section.title}")
-        if section.learning_objectives:
-            lines.append("**Learning Objectives:**")
-            for obj in section.learning_objectives:
-                lines.append(f"- {obj}")
-        if section.talking_points:
-            lines.append("**Talking Points:**")
-            for point in section.talking_points:
-                lines.append(f"- {point}")
-        if section.suggested_activities:
-            lines.append("**Suggested Activities:**")
-            for activity in section.suggested_activities:
-                lines.append(f"- {activity}")
-        if section.estimated_time_minutes is not None:
-            lines.append(f"**Estimated Time:** {section.estimated_time_minutes} minutes")
-    return "\n".join(lines)
+    md: List[str] = ["# Instructor Guide", ""]
 
+    for section in guide.sections:
+        md.append(f"## {section.title}")
+
+        if section.learning_objectives:
+            md.append("**Learning Objectives:**")
+            for item in section.learning_objectives:
+                md.append(f"- {item}")
+            md.append("")
+
+        if section.talking_points:
+            md.append("**Talking Points:**")
+            for tp in section.talking_points:
+                md.append(f"- {tp}")
+            md.append("")
+
+        if section.suggested_activities:
+            md.append("**Activities / Demonstrations:**")
+            for act in section.suggested_activities:
+                md.append(f"- {act}")
+            md.append("")
+
+        if section.estimated_time_minutes:
+            md.append(f"**Estimated Time:** {section.estimated_time_minutes} minutes")
+            md.append("")
+
+    return "\n".join(md).strip()
+
+
+# -------------------------------------------------------------------
+# Video Script → Markdown
+# -------------------------------------------------------------------
 
 def video_script_to_markdown(script: VideoScript) -> str:
-    lines = ["# Video Script"]
-    for idx, segment in enumerate(script.segments, start=1):
-        lines.append(f"\n## Segment {idx}: {segment.title}")
-        lines.append("**Narration:**")
-        lines.append(segment.narration)
-        lines.append("**Screen Directions:**")
-        lines.append(segment.screen_directions)
-        if segment.approx_duration_seconds is not None:
-            lines.append(f"**Approx Duration:** {segment.approx_duration_seconds} seconds")
-    return "\n".join(lines)
+    md = ["# Video Script", ""]
+
+    for seg in script.segments:
+        md.append(f"## {seg.title}")
+
+        if seg.narration:
+            md.append("**Narration:**")
+            md.append(seg.narration)
+            md.append("")
+
+        if seg.screen_directions:
+            md.append("**Screen Directions:**")
+            md.append(seg.screen_directions)
+            md.append("")
+
+        if seg.approx_duration_seconds:
+            md.append(f"**Approx Duration:** {seg.approx_duration_seconds} seconds")
+            md.append("")
+
+    return "\n".join(md).strip()
 
 
-def quick_ref_to_markdown(qrg: QuickReferenceGuide) -> str:
-    lines = ["# Quick Reference Guide"]
-    for step in qrg.steps:
-        lines.append(f"\n## Step {step.step_number}: {step.title}")
-        lines.append(f"**Action:** {step.action}")
+# -------------------------------------------------------------------
+# Quick Reference Guide → Markdown
+# -------------------------------------------------------------------
+
+def qref_to_markdown(qref: QuickReferenceGuide) -> str:
+    md = ["# Quick Reference Guide", ""]
+
+    for step in qref.steps:
+        md.append(f"## Step {step.step_number}: {step.title}")
+        md.append(step.action)
+
         if step.notes:
-            lines.append(f"**Notes:** {step.notes}")
-    return "\n".join(lines)
+            md.append("")
+            md.append(f"**Notes:** {step.notes}")
+
+        md.append("")
+
+    return "\n".join(md).strip()
+
+
+# -------------------------------------------------------------------
+# Export
+# -------------------------------------------------------------------
+
+__all__ = [
+    "outline_to_markdown",
+    "instructor_guide_to_markdown",
+    "video_script_to_markdown",
+    "qref_to_markdown",
+]
