@@ -75,7 +75,12 @@ st.set_page_config(page_title="Training Class Generator", layout="wide")
 st.title("Training Class Generator")
 st.write("Upload documents and audio to generate outlines, guides, scripts, and quick references.")
 
-course_title = st.text_input("Course Title", value="")
+course_title = st.text_input(
+    "Course Title",
+    value="",
+    key="course_title_main",
+)
+
 class_type = st.selectbox("Class Type", ["Full Class", "Short Video", "Quick Reference Only"])
 document_uploads = st.file_uploader(
     "Upload training/source documents", type=["pdf", "docx", "txt"], accept_multiple_files=True
@@ -91,7 +96,12 @@ if "combined_text" not in st.session_state:
 if "tts_payload" not in st.session_state:
     st.session_state.tts_payload = None
 
-course_title = st.text_input("Course Title", value="")
+other_course_title = st.text_input(
+    "Course Title",
+    value="",
+    key="course_title_alt",
+)
+
 class_type = st.selectbox("Class Type", ["Full Class", "Short Video", "Quick Reference Only"])
 document_uploads = st.file_uploader(
     "Upload training/source documents", type=["pdf", "docx", "txt"], accept_multiple_files=True
