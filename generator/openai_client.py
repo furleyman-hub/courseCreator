@@ -13,28 +13,45 @@ class MissingOpenAIKeyError(Exception):
     """Raised when no OpenAI API key is configured."""
 
 
-# Recommended stable models
-TEXT_MODEL = "gpt-4.1"                # supports JSON structured responses
-TRANSCRIBE_MODEL = "gpt-4o-transcribe"   # correct transcription model
-TTS_MODEL = "gpt-4o-mini-tts"            # correct TTS model
+# -------------------------------------------------------------------
+# Model constants (compatible with OpenAI responses + JSON mode)
+# -------------------------------------------------------------------
 
+TEXT_MODEL = "gpt-4.1"             # used for outline, guide, script, QRG
+TRANSCRIBE_MODEL = "gpt-4o-transcribe"   # STT
+TTS_MODEL = "gpt-4o-mini-tts"     # TTS voice synthesis
+
+
+# -------------------------------------------------------------------
+# API key loader
+# -------------------------------------------------------------------
 
 def _read_api_key() -> Optional[str]:
-    """Resolve an OpenAI API key from Streamlit secrets or the environment."""
+    """
+    Resolve the OpenAI API key from Streamlit secrets or environment.
+    Streamlit Cloud uses st.secrets automatically.
+    """
 
+    # Streamlit secrets (preferred in Cloud)
     if "OPENAI_API_KEY" in st.secrets:
         return str(st.secrets["OPENAI_API_KEY"])
 
+    # Local environment
     return os.environ.get("OPENAI_API_KEY")
 
 
+# -------------------------------------------------------------------
+# Client factory
+# -------------------------------------------------------------------
+
 def get_client() -> OpenAI:
     """Return a configured OpenAI client or raise if the key is missing."""
-
     api_key = _read_api_key()
+
     if not api_key:
         raise MissingOpenAIKeyError(
-            "OpenAI API key not found. Set st.secrets['OPENAI_API_KEY'] or the OPENAI_API_KEY environment variable."
+            "OpenAI API key not found. Please set st.secrets['OPENAI_API_KEY'] "
+            "or define the OPENAI_API_KEY environment variable."
         )
 
     return OpenAI(api_key=api_key)
