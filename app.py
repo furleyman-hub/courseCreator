@@ -4,23 +4,19 @@ from __future__ import annotations
 
 import streamlit as st
 
+import generator.llm_openai as llm
 from generator import (
     ClassOutline,
     InstructorGuide,
     QuickReferenceGuide,
     VideoScript,
     extract_text_from_files,
-    generate_class_outline,
-    generate_instructor_guide,
-    generate_quick_reference,
-    generate_video_script,
     instructor_guide_to_markdown,
     outline_to_markdown,
     quick_ref_to_markdown,
-    synthesize_narration_audio,
-    transcribe_audio_files,
     video_script_to_markdown,
 )
+from generator.audio_processing import synthesize_narration_audio, transcribe_audio_files
 
 
 def _render_outline(outline: ClassOutline):
@@ -102,8 +98,17 @@ if st.button("Generate Training Package", type="primary"):
         st.error("Please upload at least one document or at least one audio file.")
     else:
         with st.spinner("Generating training package..."):
-            document_text = extract_text_from_files(document_uploads)
-            transcript_text = transcribe_audio_files(audio_uploads)
+            try:
+                document_text = extract_text_from_files(document_uploads)
+            except Exception as exc:  # pragma: no cover - defensive
+                st.error(f"Document processing failed: {exc}")
+                document_text = ""
+
+            try:
+                transcript_text = transcribe_audio_files(audio_uploads)
+            except Exception as exc:  # pragma: no cover - defensive
+                st.error(f"Audio transcription failed: {exc}")
+                transcript_text = ""
 
             combined_text_parts = []
             if document_text:
@@ -112,20 +117,23 @@ if st.button("Generate Training Package", type="primary"):
                 combined_text_parts.append("[Audio Transcript]\n" + transcript_text)
             full_text = "\n\n".join(combined_text_parts)
 
-            outline = generate_class_outline(full_text, course_title, class_type)
-            instructor_guide = generate_instructor_guide(full_text, course_title, class_type)
-            video_script = generate_video_script(full_text, course_title, class_type)
-            quick_reference = generate_quick_reference(full_text, course_title, class_type)
-
-            st.session_state.generated_package = {
-                "outline": outline,
-                "instructor_guide": instructor_guide,
-                "video_script": video_script,
-                "quick_reference": quick_reference,
-            }
-            st.session_state.combined_text = full_text
-            st.session_state.tts_payload = None
-        st.success("Training package generated!")
+            try:
+                outline = llm.generate_class_outline(full_text, course_title, class_type)
+                instructor_guide = llm.generate_instructor_guide(full_text, course_title, class_type)
+                video_script = llm.generate_video_script(full_text, course_title, class_type)
+                quick_reference = llm.generate_quick_reference(full_text, course_title, class_type)
+            except Exception as exc:  # pragma: no cover - defensive
+                st.error(f"Failed to generate training content: {exc}")
+            else:
+                st.session_state.generated_package = {
+                    "outline": outline,
+                    "instructor_guide": instructor_guide,
+                    "video_script": video_script,
+                    "quick_reference": quick_reference,
+                }
+                st.session_state.combined_text = full_text
+                st.session_state.tts_payload = None
+                st.success("Training package generated!")
 
 
 package = st.session_state.generated_package
@@ -157,9 +165,14 @@ if package:
                 st.session_state.tts_payload = synthesize_narration_audio(package["video_script"])
 
         if st.session_state.tts_payload:
-            st.info("Download generated narration segments below. These are placeholder audio files.")
+            st.info("Download generated narration segments below.")
             for filename, payload in st.session_state.tts_payload.items():
-                st.download_button(filename, payload, file_name=filename)
+                st.download_button(
+                    label=f"Download {filename}",
+                    data=payload,
+                    file_name=filename,
+                    mime="audio/mpeg",
+                )
 
     with tabs[3]:
         st.header("Quick Reference Guide")
