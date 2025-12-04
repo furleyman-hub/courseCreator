@@ -1,3 +1,5 @@
+import os
+print("DEBUG: Files in generator directory:", os.listdir(os.path.dirname(__file__)))
 from .generator import (
     generate_class_outline,
     generate_instructor_guide,
