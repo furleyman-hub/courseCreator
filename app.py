@@ -57,7 +57,7 @@ def _render_video_script(script: VideoScript) -> None:
         st.subheader(f"Segment {idx}: {segment.title}")
         st.markdown("**Narration:**")
         st.markdown(segment.narration)
-        st.markmarkdown("**Screen Directions:**")
+        st.markdown("**Screen Directions:**")
         st.markdown(segment.screen_directions)
         if segment.approx_duration_seconds is not None:
             st.markdown(f"**Approx Duration:** {segment.approx_duration_seconds} seconds")
