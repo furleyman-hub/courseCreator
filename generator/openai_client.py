@@ -13,9 +13,10 @@ class MissingOpenAIKeyError(Exception):
     """Raised when no OpenAI API key is configured."""
 
 
-TEXT_MODEL = "gpt-4.1-mini"
-TRANSCRIBE_MODEL = "gpt-4o-transcribe"
-TTS_MODEL = "gpt-4o-mini-tts"
+# Recommended stable models
+TEXT_MODEL = "gpt-4.1"                # supports JSON structured responses
+TRANSCRIBE_MODEL = "gpt-4o-transcribe"   # correct transcription model
+TTS_MODEL = "gpt-4o-mini-tts"            # correct TTS model
 
 
 def _read_api_key() -> Optional[str]:
@@ -23,6 +24,7 @@ def _read_api_key() -> Optional[str]:
 
     if "OPENAI_API_KEY" in st.secrets:
         return str(st.secrets["OPENAI_API_KEY"])
+
     return os.environ.get("OPENAI_API_KEY")
 
 
