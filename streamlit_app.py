@@ -81,8 +81,8 @@ def qrg_to_md(qrg: Dict) -> str:
     return "\n\n".join(lines)
 
 
-def download_button(label: str, content: str, filename: str):
-    st.download_button(label, content, file_name=filename, mime="text/markdown")
+def download_button(label: str, content: str, filename: str, *, key: str):
+    st.download_button(label, content, file_name=filename, mime="text/markdown", key=key)
 
 
 def render_artifacts(artifacts: Dict):
@@ -96,33 +96,60 @@ def render_artifacts(artifacts: Dict):
 
     with tabs[0]:
         st.markdown(outline_to_md(outline))
-        download_button("Download Outline (.md)", outline_to_md(outline), "class_outline.md")
+        download_button(
+            "Download Outline (.md)",
+            outline_to_md(outline),
+            "class_outline.md",
+            key="legacy_download_outline_md",
+        )
 
     with tabs[1]:
         st.markdown(instructor_to_md(instructor))
-        download_button("Download Instructor Guide (.md)", instructor_to_md(instructor), "instructor_guide.md")
+        download_button(
+            "Download Instructor Guide (.md)",
+            instructor_to_md(instructor),
+            "instructor_guide.md",
+            key="legacy_download_instructor_md",
+        )
 
     with tabs[2]:
         st.markdown(video_to_md(video))
-        download_button("Download Video Script (.md)", video_to_md(video), "video_script.md")
+        download_button(
+            "Download Video Script (.md)",
+            video_to_md(video),
+            "video_script.md",
+            key="legacy_download_video_script_md",
+        )
 
     with tabs[3]:
         st.markdown(qrg_to_md(qrg))
-        download_button("Download QRG (.md)", qrg_to_md(qrg), "quick_reference.md")
+        download_button(
+            "Download QRG (.md)",
+            qrg_to_md(qrg),
+            "quick_reference.md",
+            key="legacy_download_qrg_md",
+        )
 
 
 st.sidebar.header("Settings")
 st.sidebar.write("Set the backend API base URL (FastAPI app).")
-backend_url = st.sidebar.text_input("Backend URL", BACKEND_URL)
+backend_url = st.sidebar.text_input("Backend URL", BACKEND_URL, key="sidebar_backend_url")
 st.sidebar.caption("Defaults to http://localhost:8000")
 
 st.markdown("---")
 
 with st.form(key="upload_form"):
-    course_title = st.text_input("Course Title", value="")
-    class_type = st.selectbox("Class Type", ["Full Class", "Short Video", "Quick Reference Only"])
+    course_title = st.text_input("Course Title", value="", key="legacy_course_title")
+    class_type = st.selectbox(
+        "Class Type",
+        ["Full Class", "Short Video", "Quick Reference Only"],
+        key="legacy_class_type",
+    )
     uploaded_files = st.file_uploader(
-        "Upload training/source documents", type=["pdf", "doc", "docx", "txt"], accept_multiple_files=True
+        "Upload training/source documents",
+        type=["pdf", "doc", "docx", "txt"],
+        accept_multiple_files=True,
+        key="legacy_document_uploader",
     )
     submitted = st.form_submit_button("Generate Training Package")
 
