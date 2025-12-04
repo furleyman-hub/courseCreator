@@ -7,7 +7,16 @@ from textwrap import shorten
 from typing import Any, Dict, List
 
 import streamlit as st
-from openai import OpenAIError
+
+# NEW: correct exception classes from the new OpenAI SDK
+from openai import (
+    APIError,
+    APIConnectionError,
+    BadRequestError,
+    AuthenticationError,
+    NotFoundError,
+    RateLimitError,
+)
 
 from .models import (
     ClassOutline,
@@ -22,6 +31,10 @@ from .models import (
 from .openai_client import MissingOpenAIKeyError, TEXT_MODEL, get_client
 
 
+# ------------------------------------------------------
+# Helpers
+# ------------------------------------------------------
+
 def _format_source_excerpt(full_text: str, limit: int = 6000) -> str:
     if not full_text:
         return "[No source text supplied; rely on general instructional design best practices.]"
@@ -30,22 +43,28 @@ def _format_source_excerpt(full_text: str, limit: int = 6000) -> str:
 
 def _call_json_response(system_prompt: str, user_prompt: str) -> Dict[str, Any]:
     client = get_client()
-    response = client.responses.create(
-        model=TEXT_MODEL,
-        input=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        response_format={"type": "json_object"},
-    )
-    return json.loads(response.output_text)
 
+    try:
+        response = client.responses.create(
+            model=TEXT_MODEL,
+            input=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            response_format={"type": "json_object"},
+        )
+        return json.loads(response.output_text)
 
-def _handle_errors(context: str, exc: Exception):
-    if isinstance(exc, MissingOpenAIKeyError):
-        st.error(str(exc))
-    else:
-        st.error(f"{context}: {exc}")
+    except MissingOpenAIKeyError:
+        raise
+
+    except (APIError, APIConnectionError, RateLimitError, AuthenticationError, BadRequestError, NotFoundError) as exc:
+        st.error(f"OpenAI API error: {exc}")
+        raise
+
+    except Exception as exc:
+        st.error(f"Unexpected error calling OpenAI: {exc}")
+        raise
 
 
 def _parse_outline(payload: Dict[str, Any], course_title: str, class_type: str) -> ClassOutline:
@@ -122,87 +141,113 @@ def _parse_quick_reference(payload: Dict[str, Any]) -> QuickReferenceGuide:
             continue
     return QuickReferenceGuide(steps=steps)
 
+# ------------------------------------------------------
+# Main LLM Calls
+# ------------------------------------------------------
 
 def generate_class_outline(full_text: str, course_title: str, class_type: str) -> ClassOutline:
     excerpt = _format_source_excerpt(full_text)
+
     system_prompt = (
         "You are an instructional designer who produces concise, actionable class outlines. "
         "Always reply with JSON only."
     )
+
     user_prompt = (
-        f"Create a ClassOutline JSON object for the course title '{course_title}' (type: {class_type}).\n"
-        f"Use the following source material as guidance, focusing on key themes and logical flow.\n"
-        f"Source excerpt:\n{excerpt}\n"
+        f"Create a ClassOutline JSON object for the course '{course_title}' ({class_type}).\n"
+        f"Use the following source text:\n{excerpt}\n\n"
         "Schema: {title: str, sections: [ {title, objectives: list[str], duration_minutes: int|null, subtopics: list[str]} ]}"
     )
+
     try:
         payload = _call_json_response(system_prompt, user_prompt)
         return _parse_outline(payload, course_title, class_type)
-    except (MissingOpenAIKeyError, OpenAIError, json.JSONDecodeError) as exc:
-        _handle_errors("Unable to generate class outline", exc)
-    except Exception as exc:  # pragma: no cover - defensive
-        _handle_errors("Unexpected error while generating class outline", exc)
+
+    except MissingOpenAIKeyError as exc:
+        st.error(str(exc))
+
+    except Exception:
+        st.error("Class outline generation failed.")
+
     return ClassOutline(title=f"{course_title} ({class_type})", sections=[])
 
 
 def generate_instructor_guide(full_text: str, course_title: str, class_type: str) -> InstructorGuide:
     excerpt = _format_source_excerpt(full_text)
+
     system_prompt = (
         "You create detailed instructor guides with objectives, talking points, activities, and timing. "
         "Always reply with JSON only."
     )
+
     user_prompt = (
-        f"Produce an InstructorGuide JSON object for the course '{course_title}' ({class_type}).\n"
-        f"Base it on this source excerpt; prioritize clarity and actionable guidance.\n{excerpt}\n"
-        "Schema: {sections: [ {title, learning_objectives: list[str], talking_points: list[str], suggested_activities: list[str], estimated_time_minutes: int|null} ]}"
+        f"Produce an InstructorGuide JSON for '{course_title}' ({class_type}).\n"
+        f"Source text:\n{excerpt}\n\n"
+        "Schema: {sections: [ {title, learning_objectives, talking_points, suggested_activities, estimated_time_minutes} ]}"
     )
+
     try:
         payload = _call_json_response(system_prompt, user_prompt)
         return _parse_instructor_guide(payload)
-    except (MissingOpenAIKeyError, OpenAIError, json.JSONDecodeError) as exc:
-        _handle_errors("Unable to generate instructor guide", exc)
-    except Exception as exc:  # pragma: no cover - defensive
-        _handle_errors("Unexpected error while generating instructor guide", exc)
+
+    except MissingOpenAIKeyError as exc:
+        st.error(str(exc))
+
+    except Exception:
+        st.error("Instructor guide generation failed.")
+
     return InstructorGuide(sections=[])
 
 
 def generate_video_script(full_text: str, course_title: str, class_type: str) -> VideoScript:
     excerpt = _format_source_excerpt(full_text)
+
     system_prompt = (
         "You write video scripts with narration and precise screen directions. Always reply with JSON only."
     )
+
     user_prompt = (
-        f"Draft a VideoScript JSON for '{course_title}' ({class_type}). Include segments with narration, screen_directions, and approx_duration_seconds.\n"
-        f"Source excerpt for context:\n{excerpt}\n"
-        "Schema: {segments: [ {title, narration, screen_directions, approx_duration_seconds: int|null} ]}"
+        f"Draft a VideoScript JSON for '{course_title}' ({class_type}).\n"
+        f"Source text:\n{excerpt}\n\n"
+        "Schema: {segments: [ {title, narration, screen_directions, approx_duration_seconds} ]}"
     )
+
     try:
         payload = _call_json_response(system_prompt, user_prompt)
         return _parse_video_script(payload)
-    except (MissingOpenAIKeyError, OpenAIError, json.JSONDecodeError) as exc:
-        _handle_errors("Unable to generate video script", exc)
-    except Exception as exc:  # pragma: no cover - defensive
-        _handle_errors("Unexpected error while generating video script", exc)
+
+    except MissingOpenAIKeyError as exc:
+        st.error(str(exc))
+
+    except Exception:
+        st.error("Video script generation failed.")
+
     return VideoScript(segments=[])
 
 
 def generate_quick_reference(full_text: str, course_title: str, class_type: str) -> QuickReferenceGuide:
     excerpt = _format_source_excerpt(full_text)
+
     system_prompt = (
         "You create succinct quick reference guides with numbered steps and optional notes. Always reply with JSON only."
     )
+
     user_prompt = (
-        f"Produce a QuickReferenceGuide JSON for '{course_title}' ({class_type}). Steps should be numbered and concise.\n"
-        f"Use this source excerpt for context:\n{excerpt}\n"
-        "Schema: {steps: [ {step_number: int, title: str, action: str, notes: str|null} ]}"
+        f"Produce a QuickReferenceGuide JSON for '{course_title}' ({class_type}).\n"
+        f"Source text:\n{excerpt}\n\n"
+        "Schema: {steps: [ {step_number, title, action, notes} ]}"
     )
+
     try:
         payload = _call_json_response(system_prompt, user_prompt)
         return _parse_quick_reference(payload)
-    except (MissingOpenAIKeyError, OpenAIError, json.JSONDecodeError) as exc:
-        _handle_errors("Unable to generate quick reference guide", exc)
-    except Exception as exc:  # pragma: no cover - defensive
-        _handle_errors("Unexpected error while generating quick reference guide", exc)
+
+    except MissingOpenAIKeyError as exc:
+        st.error(str(exc))
+
+    except Exception:
+        st.error("Quick reference generation failed.")
+
     return QuickReferenceGuide(steps=[])
 
 
