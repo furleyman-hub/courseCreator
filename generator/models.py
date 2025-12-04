@@ -4,6 +4,10 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 
+# ------------------------------------------------------
+# Class Outline
+# ------------------------------------------------------
+
 @dataclass
 class OutlineSection:
     title: str
@@ -17,6 +21,10 @@ class ClassOutline:
     title: str
     sections: List[OutlineSection]
 
+
+# ------------------------------------------------------
+# Instructor Guide
+# ------------------------------------------------------
 
 @dataclass
 class InstructorSection:
@@ -32,6 +40,10 @@ class InstructorGuide:
     sections: List[InstructorSection]
 
 
+# ------------------------------------------------------
+# Video Script
+# ------------------------------------------------------
+
 @dataclass
 class VideoSegment:
     title: str
@@ -45,6 +57,10 @@ class VideoScript:
     segments: List[VideoSegment]
 
 
+# ------------------------------------------------------
+# Quick Reference Guide
+# ------------------------------------------------------
+
 @dataclass
 class QuickRefStep:
     step_number: int
@@ -57,6 +73,10 @@ class QuickRefStep:
 class QuickReferenceGuide:
     steps: List[QuickRefStep]
 
+
+# ------------------------------------------------------
+# Combined Package Used by app.py
+# ------------------------------------------------------
 
 @dataclass
 class GeneratedPackage:
