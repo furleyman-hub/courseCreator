@@ -1,6 +1,6 @@
 # Training Class Generator
 
-A single Streamlit app that turns uploaded training materials into outlines, instructor guides, video scripts, and quick reference guides. You can generate outputs from documents, audio, or a mix of both. Document extraction is still stubbed for simplicity, while LLM generation, speech-to-text, and text-to-speech now use the OpenAI API.
+A single Streamlit app that turns uploaded training materials into outlines, instructor guides, video scripts, and quick reference guides. Document extraction, LLM generation, speech-to-text, and text-to-speech are currently stubbed to make it easy to wire in real services later.
 
 ## Setup
 
@@ -10,10 +10,6 @@ A single Streamlit app that turns uploaded training materials into outlines, ins
    ```bash
    pip install -r requirements.txt
    ```
-
-3. Provide your OpenAI API key via **either**:
-   - `st.secrets["OPENAI_API_KEY"]` (recommended for Streamlit Cloud)
-   - `OPENAI_API_KEY` environment variable
 
 ## Run
 
@@ -26,5 +22,5 @@ streamlit run app.py
 ## Notes
 
 - Upload PDF, DOCX, or TXT files plus optional audio (WAV, MP3, M4A) directly in the Streamlit UI.
-- LLM outputs, speech-to-text, and TTS use the OpenAI API; document text extraction remains stubbed to keep the example lightweight.
-- Generated artifacts are displayed in tabs and can be downloaded as Markdown files. Narration audio is generated per video segment for download.
+- Content extraction, LLM outputs, speech-to-text, and TTS are placeholder implementations ready for replacement with real services (e.g., OpenAI Whisper/TTS).
+- Generated artifacts are displayed in tabs and can be downloaded as Markdown files. TTS audio download buttons return stub audio bytes for now.
