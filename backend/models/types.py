@@ -54,6 +54,7 @@ class GenerateRequest(BaseModel):
     extractedText: str
     courseTitle: str
     classType: str
+    openaiApiKey: Optional[str] = Field(default=None, description="Optional per-request OpenAI API key")
 
 
 class GenerateResponse(BaseModel):

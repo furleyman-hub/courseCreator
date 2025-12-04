@@ -19,11 +19,7 @@ from .models import (
     VideoScript,
     VideoSegment,
 )
-from .openai_client import (
-    MissingOpenAIKeyError,
-    TEXT_MODEL,
-    create_json_response,
-)
+from .openai_client import MissingOpenAIKeyError, TEXT_MODEL, get_client
 
 
 def _format_source_excerpt(full_text: str, limit: int = 6000) -> str:
@@ -33,8 +29,16 @@ def _format_source_excerpt(full_text: str, limit: int = 6000) -> str:
 
 
 def _call_json_response(system_prompt: str, user_prompt: str) -> Dict[str, Any]:
-    response_text = create_json_response(system_prompt, user_prompt, model=TEXT_MODEL)
-    return json.loads(response_text)
+    client = get_client()
+    response = client.responses.create(
+        model=TEXT_MODEL,
+        input=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        response_format={"type": "json_object"},
+    )
+    return json.loads(response.output_text)
 
 
 def _handle_errors(context: str, exc: Exception):
@@ -123,13 +127,13 @@ def generate_class_outline(full_text: str, course_title: str, class_type: str) -
     excerpt = _format_source_excerpt(full_text)
     system_prompt = (
         "You are an instructional designer who produces concise, actionable class outlines. "
-        "Return a JSON object with keys: title (str), sections (list of objects with title, objectives list[str], "
-        "duration_minutes int|null, subtopics list[str]). No additional keys."
+        "Always reply with JSON only."
     )
     user_prompt = (
         f"Create a ClassOutline JSON object for the course title '{course_title}' (type: {class_type}).\n"
         f"Use the following source material as guidance, focusing on key themes and logical flow.\n"
-        f"Source excerpt:\n{excerpt}"
+        f"Source excerpt:\n{excerpt}\n"
+        "Schema: {title: str, sections: [ {title, objectives: list[str], duration_minutes: int|null, subtopics: list[str]} ]}"
     )
     try:
         payload = _call_json_response(system_prompt, user_prompt)
@@ -145,12 +149,12 @@ def generate_instructor_guide(full_text: str, course_title: str, class_type: str
     excerpt = _format_source_excerpt(full_text)
     system_prompt = (
         "You create detailed instructor guides with objectives, talking points, activities, and timing. "
-        "Return a JSON object with key 'sections' as a list of objects containing: title (str), learning_objectives "
-        "(list[str]), talking_points (list[str]), suggested_activities (list[str]), estimated_time_minutes (int|null)."
+        "Always reply with JSON only."
     )
     user_prompt = (
         f"Produce an InstructorGuide JSON object for the course '{course_title}' ({class_type}).\n"
-        f"Base it on this source excerpt; prioritize clarity and actionable guidance.\n{excerpt}"
+        f"Base it on this source excerpt; prioritize clarity and actionable guidance.\n{excerpt}\n"
+        "Schema: {sections: [ {title, learning_objectives: list[str], talking_points: list[str], suggested_activities: list[str], estimated_time_minutes: int|null} ]}"
     )
     try:
         payload = _call_json_response(system_prompt, user_prompt)
@@ -165,12 +169,12 @@ def generate_instructor_guide(full_text: str, course_title: str, class_type: str
 def generate_video_script(full_text: str, course_title: str, class_type: str) -> VideoScript:
     excerpt = _format_source_excerpt(full_text)
     system_prompt = (
-        "You write video scripts with narration and precise screen directions. Return JSON with key 'segments' "
-        "as a list of objects: title (str), narration (str), screen_directions (str), approx_duration_seconds (int|null)."
+        "You write video scripts with narration and precise screen directions. Always reply with JSON only."
     )
     user_prompt = (
         f"Draft a VideoScript JSON for '{course_title}' ({class_type}). Include segments with narration, screen_directions, and approx_duration_seconds.\n"
-        f"Source excerpt for context:\n{excerpt}"
+        f"Source excerpt for context:\n{excerpt}\n"
+        "Schema: {segments: [ {title, narration, screen_directions, approx_duration_seconds: int|null} ]}"
     )
     try:
         payload = _call_json_response(system_prompt, user_prompt)
@@ -185,12 +189,12 @@ def generate_video_script(full_text: str, course_title: str, class_type: str) ->
 def generate_quick_reference(full_text: str, course_title: str, class_type: str) -> QuickReferenceGuide:
     excerpt = _format_source_excerpt(full_text)
     system_prompt = (
-        "You create succinct quick reference guides with numbered steps and optional notes. Return JSON with key 'steps' "
-        "as a list of objects: step_number (int), title (str), action (str), notes (str|null)."
+        "You create succinct quick reference guides with numbered steps and optional notes. Always reply with JSON only."
     )
     user_prompt = (
         f"Produce a QuickReferenceGuide JSON for '{course_title}' ({class_type}). Steps should be numbered and concise.\n"
-        f"Use this source excerpt for context:\n{excerpt}"
+        f"Use this source excerpt for context:\n{excerpt}\n"
+        "Schema: {steps: [ {step_number: int, title: str, action: str, notes: str|null} ]}"
     )
     try:
         payload = _call_json_response(system_prompt, user_prompt)

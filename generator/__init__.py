@@ -12,8 +12,7 @@ from .models import (
     VideoSegment,
 )
 from .audio_processing import synthesize_narration_audio, transcribe_audio_files
-from .file_processing import extract_text_from_files
-from .llm_openai import (
+from .llm_stub import (
     generate_class_outline,
     generate_instructor_guide,
     generate_quick_reference,
@@ -25,6 +24,7 @@ from .markdown_export import (
     quick_ref_to_markdown,
     video_script_to_markdown,
 )
+from .text_extraction import extract_text_from_files
 
 __all__ = [
     "ClassOutline",

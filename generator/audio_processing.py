@@ -1,60 +1,42 @@
-"""Audio processing helpers using OpenAI for transcription and TTS."""
+"""Stubbed audio processing helpers."""
+
 from __future__ import annotations
 
-import os
-import tempfile
 from typing import Dict, List
 
-import streamlit as st
-from openai import OpenAIError
 from streamlit.runtime.uploaded_file_manager import UploadedFile
 
 from .models import VideoScript
-from .openai_client import MissingOpenAIKeyError, synthesize_speech, transcribe_audio
 
 
 def transcribe_audio_files(audio_files: List[UploadedFile]) -> str:
-    """Transcribe uploaded audio files using the OpenAI STT API."""
+    """Return placeholder transcript text for uploaded audio files.
+
+    This function is intentionally stubbed. In a real implementation, you could
+    call Whisper or another speech-to-text provider here and aggregate the
+    transcripts before returning them.
+    """
 
     if not audio_files:
         return ""
 
-    transcripts: List[str] = []
-    transcribe = transcribe_audio
-
-    for file in audio_files:
-        tmp_path: str | None = None
-        try:
-            with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.name)[-1]) as tmp:
-                tmp.write(file.getbuffer())
-                tmp_path = tmp.name
-
-            with open(tmp_path, "rb") as audio_handle:
-                transcripts.append(transcribe(audio_handle))
-        except (MissingOpenAIKeyError, OpenAIError, OSError) as exc:
-            st.error(f"Transcription failed for {file.name}: {exc}")
-        finally:
-            if tmp_path and os.path.exists(tmp_path):
-                try:
-                    os.remove(tmp_path)
-                except OSError:
-                    pass
-
-    return "\n".join(filter(None, transcripts))
+    file_names = [file.name for file in audio_files]
+    return "Transcribed audio from: " + ", ".join(file_names)
 
 
 def synthesize_narration_audio(video_script: VideoScript) -> Dict[str, bytes]:
-    """Generate narration audio for each video segment using OpenAI TTS."""
+    """Return placeholder audio bytes keyed by filename for each script segment.
 
-    payloads: Dict[str, bytes] = {}
-    synthesize = synthesize_speech
+    In production, this is where you would call a TTS provider (e.g., OpenAI
+    TTS or another service) to turn narration text into downloadable audio
+    files.
+    """
+
+    audio_payloads: Dict[str, bytes] = {}
 
     for idx, segment in enumerate(video_script.segments, start=1):
-        safe_title = segment.title.replace(" ", "_").lower() or f"segment_{idx}"
-        filename = f"segment_{idx:02d}_{safe_title}.mp3"
-        try:
-            audio_bytes = synthesize(segment.narration or segment.title)
-            payloads[filename] = audio_bytes
-        except (MissingOpenAIKeyError, OpenAIError) as exc:
-            st.error(f"TTS failed for segment '{segment.title}': {exc}")
-    return payloads
+        filename = f"segment_{idx}.wav"
+        # This is just a stub; replace with real audio synthesis output.
+        audio_payloads[filename] = f"Fake audio for {segment.title}".encode("utf-8")
+
+    return audio_payloads

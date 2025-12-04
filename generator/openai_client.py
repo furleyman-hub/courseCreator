@@ -38,44 +38,10 @@ def get_client() -> OpenAI:
     return OpenAI(api_key=api_key)
 
 
-def create_json_response(system_prompt: str, user_prompt: str, model: str = TEXT_MODEL) -> str:
-    """Call the Responses API and return the JSON text payload."""
-
-    client = get_client()
-    response = client.responses.create(
-        model=model,
-        input=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        response_format={"type": "json_object"},
-    )
-    return response.output_text
-
-
-def transcribe_audio(file_handle, model: str = TRANSCRIBE_MODEL) -> str:
-    """Transcribe audio using OpenAI STT."""
-
-    client = get_client()
-    response = client.audio.transcriptions.create(model=model, file=file_handle)
-    return response.text
-
-
-def synthesize_speech(input_text: str, model: str = TTS_MODEL, voice: str = "alloy") -> bytes:
-    """Create speech audio for the provided text."""
-
-    client = get_client()
-    response = client.audio.speech.create(model=model, voice=voice, input=input_text)
-    return response.read()
-
-
 __all__ = [
     "MissingOpenAIKeyError",
     "TEXT_MODEL",
     "TRANSCRIBE_MODEL",
     "TTS_MODEL",
     "get_client",
-    "create_json_response",
-    "transcribe_audio",
-    "synthesize_speech",
 ]
