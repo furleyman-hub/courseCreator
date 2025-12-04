@@ -52,6 +52,8 @@ def _call_json_response(system_prompt: str, user_prompt: str) -> Dict[str, Any]:
             ],
             response_format={"type": "json_object"},
         )
+        st.write("DEBUG: RAW MODEL OUTPUT:", response.output_text[:2000])
+
         return json.loads(response.output_text)
 
     except MissingOpenAIKeyError:
