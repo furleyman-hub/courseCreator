@@ -39,7 +39,6 @@ __all__ = [
     "extract_text_from_files",
     "transcribe_audio_files",
     "synthesize_narration_audio",
-    # models
     "ClassOutline",
     "OutlineSection",
     "InstructorGuide",
