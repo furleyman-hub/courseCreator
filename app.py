@@ -108,6 +108,7 @@ if st.button("Generate Training Package", type="primary"):
     else:
         with st.spinner("Generating training package..."):
             document_text = extract_text_from_files(document_uploads)
+            st.write("EXTRACTED TEXT PREVIEW:", document_text[:500])
             transcript_text = transcribe_audio_files(audio_uploads)
 
             combined_text_parts = []
