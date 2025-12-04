@@ -5,17 +5,24 @@ from __future__ import annotations
 import io
 from typing import List
 
-import pdfplumber
+from pypdf import PdfReader
 import docx
 from streamlit.runtime.uploaded_file_manager import UploadedFile
 
 
 def _extract_pdf(file: UploadedFile) -> str:
-    """Extract text from a PDF using pdfplumber."""
+    """Extract text from a PDF using pypdf."""
     try:
-        with pdfplumber.open(io.BytesIO(file.read())) as pdf:
-            pages = [page.extract_text() or "" for page in pdf.pages]
-            return "\n".join(pages)
+        # Read the uploaded file into memory
+        data = file.read()
+        pdf_stream = io.BytesIO(data)
+        reader = PdfReader(pdf_stream)
+
+        pages_text = []
+        for page in reader.pages:
+            pages_text.append(page.extract_text() or "")
+
+        return "\n".join(pages_text)
     except Exception as exc:
         return f"[PDF extraction failed for {file.name}: {exc}]"
 
@@ -23,7 +30,9 @@ def _extract_pdf(file: UploadedFile) -> str:
 def _extract_docx(file: UploadedFile) -> str:
     """Extract text from a DOCX file using python-docx."""
     try:
-        doc = docx.Document(io.BytesIO(file.read()))
+        data = file.read()
+        doc_stream = io.BytesIO(data)
+        doc = docx.Document(doc_stream)
         paras = [p.text for p in doc.paragraphs]
         return "\n".join(paras)
     except Exception as exc:
@@ -51,17 +60,14 @@ def extract_text_from_files(uploaded_files: List[UploadedFile]) -> str:
     sections = []
 
     for file in uploaded_files:
-        filename = file.name.lower()
+        filename = (file.name or "").lower()
 
         if filename.endswith(".pdf"):
             sections.append(_extract_pdf(file))
-
         elif filename.endswith(".docx"):
             sections.append(_extract_docx(file))
-
         elif filename.endswith(".txt"):
             sections.append(_extract_txt(file))
-
         else:
             sections.append(f"[Unsupported file type: {file.name}]")
 
