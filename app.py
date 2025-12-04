@@ -84,18 +84,6 @@ audio_uploads = st.file_uploader(
     "Upload audio files for transcription", type=["wav", "mp3", "m4a"], accept_multiple_files=True
 )
 
-if generate_clicked:
-    # TEMP: bypass uploads for a sanity check
-    full_text = """
-This course is about CONFIGURING PURPLE BANANA FIREWALLS in Windows Server 2022.
-If your outline does NOT mention 'PURPLE BANANA FIREWALLS', something is wrong.
-"""
-    outline = generate_class_outline(full_text, course_title, class_type)
-    instructor_guide = generate_instructor_guide(full_text, course_title, class_type)
-    video_script = generate_video_script(full_text, course_title, class_type)
-    quick_reference = generate_quick_reference(full_text, course_title, class_type)
-    ...
-
 if "generated_package" not in st.session_state:
     st.session_state.generated_package = None
 if "combined_text" not in st.session_state:
