@@ -91,6 +91,14 @@ if "combined_text" not in st.session_state:
 if "tts_payload" not in st.session_state:
     st.session_state.tts_payload = None
 
+course_title = st.text_input("Course Title", value="")
+class_type = st.selectbox("Class Type", ["Full Class", "Short Video", "Quick Reference Only"])
+document_uploads = st.file_uploader(
+    "Upload training/source documents", type=["pdf", "docx", "txt"], accept_multiple_files=True
+)
+audio_uploads = st.file_uploader(
+    "Upload audio files for transcription", type=["wav", "mp3", "m4a"], accept_multiple_files=True
+)
 
 if st.button("Generate Training Package", type="primary"):
     if not course_title:
