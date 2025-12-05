@@ -97,24 +97,52 @@ def _parse_outline(payload: Dict[str, Any], course_title: str, class_type: str) 
 
 
 def _parse_instructor_guide(payload: Dict[str, Any]) -> InstructorGuide:
-    sections_data = payload.get("sections", []) if isinstance(payload, dict) else []
+    if not isinstance(payload, dict):
+        return InstructorGuide()
+
+    # Sections = Instructional Framework topics
+    sections_data = payload.get("sections", []) or []
     sections: List[InstructorSection] = []
 
     for item in sections_data:
         try:
             sections.append(
                 InstructorSection(
-                    title=str(item.get("title", "Untitled Section")),
+                    title=str(item.get("title", "Untitled Topic")),
                     learning_objectives=list(item.get("learning_objectives", []) or []),
-                    talking_points=list(item.get("talking_points", []) or []),
-                    suggested_activities=list(item.get("suggested_activities", []) or []),
+                    instructional_steps=list(item.get("instructional_steps", []) or []),
+                    key_points=list(item.get("key_points", []) or []),
                     estimated_time_minutes=item.get("estimated_time_minutes"),
                 )
             )
         except Exception:
             continue
 
-    return InstructorGuide(sections=sections)
+    guide = InstructorGuide(sections=sections)
+
+    # Front-matter / overview
+    guide.training_plan_and_goals = str(payload.get("training_plan_and_goals", "") or "")
+    guide.target_audience = str(payload.get("target_audience", "") or "")
+    guide.prerequisites = str(payload.get("prerequisites", "") or "")
+    guide.office365_status = str(payload.get("office365_status", "") or "")
+    guide.learning_objectives = list(payload.get("learning_objectives", []) or [])
+
+    # Preparation & setup
+    guide.required_materials_and_equipment = list(
+        payload.get("required_materials_and_equipment", []) or []
+    )
+    guide.instructor_setup = list(payload.get("instructor_setup", []) or [])
+    guide.participant_setup = list(payload.get("participant_setup", []) or [])
+    guide.handouts = list(payload.get("handouts", []) or [])
+
+    # Class meta
+    guide.class_type = str(payload.get("class_type", "") or "")
+    guide.class_checklist_before = list(payload.get("class_checklist_before", []) or [])
+    guide.class_checklist_start = list(payload.get("class_checklist_start", []) or [])
+    guide.class_checklist_after = list(payload.get("class_checklist_after", []) or [])
+
+    return guide
+
 
 
 def _parse_video_script(payload: Dict[str, Any]) -> VideoScript:
@@ -191,14 +219,42 @@ def generate_instructor_guide(full_text: str, course_title: str, class_type: str
     excerpt = _format_source_excerpt(full_text)
 
     system_prompt = (
-        "You create detailed instructor guides with objectives, talking points, activities, and timing. "
+        "You create detailed instructor design documents for live attorney training sessions. "
+        "Use the exact JSON schema provided. The front matter should match the structure of a "
+        "professional design document (training plan, audience, prerequisites, setup, checklists), "
+        "and 'sections' should represent the Instructional Framework topics. "
         "Always reply with JSON only."
     )
 
     user_prompt = (
         f"Produce an InstructorGuide JSON for '{course_title}' ({class_type}).\n"
-        f"Source text:\n{excerpt}\n\n"
-        "Schema: {sections: [ {title, learning_objectives, talking_points, suggested_activities, estimated_time_minutes} ]}"
+        f"Base it on this source text; be specific and concrete, and use Excel/legal context where present.\n"
+        f"Source:\n{excerpt}\n\n"
+        "Schema (use these exact property names):\n"
+        "{\n"
+        '  \"training_plan_and_goals\": str,\n'
+        '  \"target_audience\": str,\n'
+        '  \"prerequisites\": str,\n'
+        '  \"office365_status\": str,\n'
+        '  \"learning_objectives\": [str],\n'
+        '  \"required_materials_and_equipment\": [str],\n'
+        '  \"instructor_setup\": [str],\n'
+        '  \"participant_setup\": [str],\n'
+        '  \"handouts\": [str],\n'
+        '  \"class_type\": str,\n'
+        '  \"class_checklist_before\": [str],\n'
+        '  \"class_checklist_start\": [str],\n'
+        '  \"class_checklist_after\": [str],\n'
+        '  \"sections\": [\n'
+        "    {\n"
+        '      \"title\": str,\n'
+        '      \"estimated_time_minutes\": int | null,\n'
+        '      \"learning_objectives\": [str],\n'
+        '      \"instructional_steps\": [str],\n'
+        '      \"key_points\": [str]\n'
+        "    }\n"
+        "  ]\n"
+        "}\n"
     )
 
     try:
@@ -210,7 +266,7 @@ def generate_instructor_guide(full_text: str, course_title: str, class_type: str
     except Exception:
         st.error("Instructor guide generation failed.")
 
-    return InstructorGuide(sections=[])
+    return InstructorGuide()
 
 
 def generate_video_script(full_text: str, course_title: str, class_type: str) -> VideoScript:
