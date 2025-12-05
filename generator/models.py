@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Optional
 
 
@@ -28,16 +28,52 @@ class ClassOutline:
 
 @dataclass
 class InstructorSection:
+    """
+    One topic in the Instructional Framework.
+
+    Example:
+      title: "Managing Linked Workbooks in Excel"
+      learning_objectives: [...]
+      instructional_steps: [...]
+      key_points: [...]
+      estimated_time_minutes: 10
+    """
     title: str
     learning_objectives: List[str]
-    talking_points: List[str]
-    suggested_activities: List[str]
+    instructional_steps: List[str]
+    key_points: List[str]
     estimated_time_minutes: Optional[int]
 
 
 @dataclass
 class InstructorGuide:
-    sections: List[InstructorSection]
+    """
+    Whole design document for the session:
+      - Front matter (training plan, target audience, etc.)
+      - Instructional framework topics in `sections`
+    """
+
+    # Front-matter / overview
+    training_plan_and_goals: str = ""
+    target_audience: str = ""
+    prerequisites: str = ""
+    office365_status: str = ""
+    learning_objectives: List[str] = field(default_factory=list)
+
+    # Preparation & setup
+    required_materials_and_equipment: List[str] = field(default_factory=list)
+    instructor_setup: List[str] = field(default_factory=list)
+    participant_setup: List[str] = field(default_factory=list)
+    handouts: List[str] = field(default_factory=list)
+
+    # Class meta
+    class_type: str = ""
+    class_checklist_before: List[str] = field(default_factory=list)
+    class_checklist_start: List[str] = field(default_factory=list)
+    class_checklist_after: List[str] = field(default_factory=list)
+
+    # Instructional framework topics
+    sections: List[InstructorSection] = field(default_factory=list)
 
 
 # ------------------------------------------------------
