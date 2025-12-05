@@ -47,23 +47,101 @@ def _render_outline(outline: ClassOutline) -> None:
 
 
 def _render_instructor_guide(guide: InstructorGuide) -> None:
-    if not guide.sections:
-        st.info("No sections in the instructor guide.")
-        return
+    # Training plan and goals
+    if guide.training_plan_and_goals:
+        st.subheader("Training plan and goals")
+        st.write(guide.training_plan_and_goals)
 
-    for section in guide.sections:
-        st.markdown(f"### {section.title}")
-        if section.learning_objectives:
-            st.markdown("**Learning Objectives:**")
-            st.markdown("\n".join(f"- {item}" for item in section.learning_objectives))
-        if section.talking_points:
-            st.markdown("**Talking Points:**")
-            st.markdown("\n".join(f"- {item}" for item in section.talking_points))
-        if section.suggested_activities:
-            st.markdown("**Suggested Activities:**")
-            st.markdown("\n".join(f"- {item}" for item in section.suggested_activities))
-        if section.estimated_time_minutes is not None:
-            st.markdown(f"**Estimated Time:** {section.estimated_time_minutes} minutes")
+    # Target audience
+    if guide.target_audience:
+        st.subheader("Target audience")
+        st.write(guide.target_audience)
+
+    # Prerequisites
+    if guide.prerequisites:
+        st.subheader("Prerequisites")
+        st.write(guide.prerequisites)
+
+    # Office 365 status
+    if guide.office365_status:
+        st.subheader("Office 365 status")
+        st.write(guide.office365_status)
+
+    # Learning objectives
+    if guide.learning_objectives:
+        st.subheader("Learning objectives")
+        st.markdown("By the end of the session, participants will be able to:")
+        st.markdown("\n".join(f"1. {obj}" for obj in guide.learning_objectives))
+
+    # Preparation and course setup
+    if (
+        guide.required_materials_and_equipment
+        or guide.instructor_setup
+        or guide.participant_setup
+        or guide.handouts
+    ):
+        st.subheader("Preparation and course setup")
+
+        if guide.required_materials_and_equipment:
+            st.markdown("**Required materials and equipment**")
+            st.markdown("\n".join(f"- {item}" for item in guide.required_materials_and_equipment))
+
+        if guide.instructor_setup:
+            st.markdown("**Setup – instructor**")
+            st.markdown("\n".join(f"- {item}" for item in guide.instructor_setup))
+
+        if guide.participant_setup:
+            st.markdown("**Setup – participants**")
+            st.markdown("\n".join(f"- {item}" for item in guide.participant_setup))
+
+        if guide.handouts:
+            st.markdown("**Handouts (optional)**")
+            st.markdown("\n".join(f"- {item}" for item in guide.handouts))
+
+    # Type of class
+    if guide.class_type:
+        st.subheader("Type of class")
+        st.write(guide.class_type)
+
+    # Class checklist
+    if (
+        guide.class_checklist_before
+        or guide.class_checklist_start
+        or guide.class_checklist_after
+    ):
+        st.subheader("Class checklist")
+
+        if guide.class_checklist_before:
+            st.markdown("**Before class:**")
+            st.markdown("\n".join(f"- {item}" for item in guide.class_checklist_before))
+
+        if guide.class_checklist_start:
+            st.markdown("**Start of class:**")
+            st.markdown("\n".join(f"- {item}" for item in guide.class_checklist_start))
+
+        if guide.class_checklist_after:
+            st.markdown("**After class:**")
+            st.markdown("\n".join(f"- {item}" for item in guide.class_checklist_after))
+
+    # Instructional framework topics
+    if guide.sections:
+        st.subheader("Instructional framework")
+        for section in guide.sections:
+            st.markdown(f"### Topic: {section.title}")
+            if section.estimated_time_minutes:
+                st.markdown(f"**Estimated Time:** {section.estimated_time_minutes} minutes")
+
+            if section.learning_objectives:
+                st.markdown("**Learning Objectives**")
+                st.markdown("\n".join(f"- {obj}" for obj in section.learning_objectives))
+
+            if section.instructional_steps:
+                st.markdown("**Instructional Steps:**")
+                st.markdown("\n".join(f"- {step}" for step in section.instructional_steps))
+
+            if section.key_points:
+                st.markdown("**Key Points:**")
+                st.markdown("\n".join(f"- {kp}" for kp in section.key_points))
 
 
 def _render_video_script(script: VideoScript) -> None:
