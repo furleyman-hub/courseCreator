@@ -326,14 +326,44 @@ def generate_quick_reference(full_text: str, course_title: str, class_type: str)
     excerpt = _format_source_excerpt(full_text)
 
     system_prompt = (
-        "You create succinct quick reference guides with numbered steps and optional notes. "
+        "You create succinct, software-focused Quick Reference Guides (QREFs) in Markdown for IT training. "
+        "The audience is attorneys and legal professionals using tools like Excel, Outlook, and other line-of-business apps. "
+        "You must follow these style rules:\n"
+        "- Use clear, numbered steps that begin with an action verb (Click, Type, Open, Press, Select, Choose, Drag).\n"
+        "- Focus on what the user does, not what happens to them; minimize the word 'you'.\n"
+        "- Bold UI elements, commands, and menu paths in Markdown (e.g., Click **Data** | **Filter**).\n"
+        "- Use a vertical bar `|` between menu/command path elements (e.g., **File** | **Print**).\n"
+        "- Do NOT say 'click on'; always say 'click'.\n"
+        "- For keystrokes, bold the key combination with no spaces around '+', e.g., **Ctrl+Z**, **Ctrl+Shift+L**.\n"
+        "- Italicize action results after the step when describing what appears on screen, e.g., '*The Save As dialog box displays.*'.\n"
+        "- Use 'dialog box' instead of 'window'; use 'displays' instead of 'appears' or 'opens'.\n"
+        "- Avoid 'button' (write 'Click **New**' instead of 'Click the New button').\n"
+        "- Bold text the user must type.\n"
+        "- Use hyphenation and spelling consistent with: double-click, drop-down, e-learning, e-mail; 'checkbox' and 'toolbar' as one word.\n"
+        "- Steps should be concise and task-focused, suitable for a one-page reference.\n"
         "Always reply with JSON only."
     )
 
     user_prompt = (
-        f"Produce a QuickReferenceGuide JSON for '{course_title}' ({class_type}).\n"
-        f"Source text:\n{excerpt}\n\n"
-        "Schema: {steps: [ {step_number, title, action, notes} ]}"
+        f"Produce a QuickReferenceGuide JSON object for '{course_title}' ({class_type}).\n"
+        f"Base the steps on this source text, focusing on concrete user actions in the software:\n"
+        f"{excerpt}\n\n"
+        "Schema (use these exact property names):\n"
+        "{\n"
+        "  \"steps\": [\n"
+        "    {\n"
+        "      \"step_number\": int,\n"
+        "      \"title\": str,\n"
+        "      \"action\": str,\n"
+        "      \"notes\": str | null\n"
+        "    }\n"
+        "  ]\n"
+        "}\n"
+        "Guidance:\n"
+        "- 'title' should be a short phrase describing the sub-task (e.g., 'Filter the current table by status').\n"
+        "- 'action' should contain the actual numbered instruction text in Markdown, including bold UI elements and italicized results as needed.\n"
+        "- If there is an important NOTE or TIP, put it in 'notes', starting with 'NOTE:' or 'TIP:' and formatted as Markdown.\n"
+        "- Steps should be ordered logically from start to finish of the workflow."
     )
 
     try:
@@ -342,6 +372,7 @@ def generate_quick_reference(full_text: str, course_title: str, class_type: str)
 
     except MissingOpenAIKeyError as exc:
         st.error(str(exc))
+
     except Exception:
         st.error("Quick reference generation failed.")
 
