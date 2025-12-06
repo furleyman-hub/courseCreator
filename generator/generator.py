@@ -44,11 +44,11 @@ def _format_source_excerpt(full_text: str, limit: int = 6000) -> str:
 
 def _build_combined_source_text(full_text: str) -> str:
     """
-    Combine the main source text with optional handwritten notes
-    stored in Streamlit session_state under 'handwritten_notes_text'.
+    Combine the main source text with optional handwritten notes stored in
+    Streamlit session_state under 'handwritten_notes_text'.
 
-    This lets handwritten notes (OCR from images) act as instructor
-    intent/context without changing any public function signatures.
+    This keeps all existing call sites the same: they still pass `full_text`,
+    and we silently append notes if present.
     """
     base_text = (full_text or "").strip()
 
