@@ -42,37 +42,6 @@ def _format_source_excerpt(full_text: str, limit: int = 6000) -> str:
     return shorten(full_text, width=limit, placeholder="... [truncated]")
 
 
-def _build_combined_source_text(full_text: str) -> str:
-    """
-    Combine the main source text with optional handwritten notes stored in
-    Streamlit session_state under 'handwritten_notes_text'.
-
-    This keeps all existing call sites the same: they still pass `full_text`,
-    and we silently append notes if present.
-    """
-    base_text = (full_text or "").strip()
-
-    try:
-        notes = (st.session_state.get("handwritten_notes_text", "") or "").strip()
-    except Exception:
-        notes = ""
-
-    if notes:
-        if base_text:
-            return (
-                base_text
-                + "\n\n=== Additional notes from instructor (handwritten) ===\n"
-                + notes
-            )
-        else:
-            return (
-                "=== Additional notes from instructor (handwritten) ===\n"
-                + notes
-            )
-
-    return base_text
-
-
 def _call_json_response(system_prompt: str, user_prompt: str) -> Dict[str, Any]:
     """Call Chat Completions API in JSON mode and return parsed JSON."""
     client = get_client()
@@ -230,8 +199,7 @@ def _parse_quick_reference(payload: Dict[str, Any]) -> QuickReferenceGuide:
 
 
 def generate_class_outline(full_text: str, course_title: str, class_type: str) -> ClassOutline:
-    combined_text = _build_combined_source_text(full_text)
-    excerpt = _format_source_excerpt(combined_text)
+    excerpt = _format_source_excerpt(full_text)
 
     system_prompt = (
         "You are an instructional designer who produces concise, actionable class outlines. "
@@ -257,8 +225,7 @@ def generate_class_outline(full_text: str, course_title: str, class_type: str) -
 
 
 def generate_instructor_guide(full_text: str, course_title: str, class_type: str) -> InstructorGuide:
-    combined_text = _build_combined_source_text(full_text)
-    excerpt = _format_source_excerpt(combined_text)
+    excerpt = _format_source_excerpt(full_text)
 
     system_prompt = (
         "You create detailed instructor design documents for live or virtual training sessions. "
@@ -314,8 +281,7 @@ def generate_instructor_guide(full_text: str, course_title: str, class_type: str
 
 
 def generate_video_script(full_text: str, course_title: str, class_type: str) -> VideoScript:
-    combined_text = _build_combined_source_text(full_text)
-    excerpt = _format_source_excerpt(combined_text)
+    excerpt = _format_source_excerpt(full_text)
 
     system_prompt = (
         "You design detailed scripts for on-screen training videos, recorded as screencasts or "
@@ -373,8 +339,7 @@ def generate_video_script(full_text: str, course_title: str, class_type: str) ->
 
 
 def generate_quick_reference(full_text: str, course_title: str, class_type: str) -> QuickReferenceGuide:
-    combined_text = _build_combined_source_text(full_text)
-    excerpt = _format_source_excerpt(combined_text)
+    excerpt = _format_source_excerpt(full_text)
 
     system_prompt = (
         "You create succinct, task-focused Quick Reference Guides (QREFs) in Markdown for training. "
@@ -428,3 +393,11 @@ def generate_quick_reference(full_text: str, course_title: str, class_type: str)
         st.error("Quick reference generation failed.")
 
     return QuickReferenceGuide(steps=[])
+
+
+__all__ = [
+    "generate_class_outline",
+    "generate_instructor_guide",
+    "generate_quick_reference",
+    "generate_video_script",
+]
