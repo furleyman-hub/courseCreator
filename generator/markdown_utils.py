@@ -186,14 +186,49 @@ def video_script_to_markdown(script: VideoScript) -> str:
 
 
 def quick_ref_to_markdown(qrg: QuickReferenceGuide) -> str:
-    """Convert a QuickReferenceGuide into markdown."""
-    lines: List[str] = ["# Quick Reference Guide", ""]
+    """Convert a QuickReferenceGuide into Markdown following the QREF house style."""
+    lines: List[str] = []
+
+    # Top-level heading
+    lines.append("# Quick Reference Guide")
+    lines.append("")
+
+    if not qrg.steps:
+        return "\n".join(lines).strip()
+
+    # Optional simple overview from the first step title
+    first_title = qrg.steps[0].title.strip() if qrg.steps[0].title else ""
+    if first_title:
+        lines.append("## Overview")
+        lines.append(
+            f"This Quick Reference Guide outlines the steps to {first_title.rstrip('.').lower()}."
+        )
+        lines.append("")
+
+    # Main steps section
+    lines.append("## Steps")
+    lines.append("")
 
     for step in qrg.steps:
-        lines.append(f"## Step {step.step_number}: {step.title}")
-        lines.append(f"**Action:** {step.action}")
-        if step.notes:
-            lines.append(f"**Notes:** {step.notes}")
+        # Step header as a task-oriented heading
+        step_title = step.title.strip() if step.title else f"Step {step.step_number}"
+        lines.append(f"### Step {step.step_number}: {step_title}")
         lines.append("")
+
+        # Action text (already expected to be Markdown)
+        if step.action:
+            # Ensure action is on its own paragraph(s)
+            lines.append(step.action.strip())
+            lines.append("")
+
+        # Optional NOTE/TIP block from notes
+        if step.notes:
+            notes_text = step.notes.strip()
+            # If the model already used NOTE:/TIP: prefix, respect it, but present as blockquote
+            if notes_text.upper().startswith("NOTE:") or notes_text.upper().startswith("TIP:"):
+                lines.append(f"> {notes_text}")
+            else:
+                lines.append(f"> **NOTE:** {notes_text}")
+            lines.append("")
 
     return "\n".join(lines).strip()
