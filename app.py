@@ -280,46 +280,72 @@ generate_clicked = st.button(
 if generate_clicked:
     if not course_title:
         st.error("Please enter a course title.")
-    elif not document_uploads and not audio_uploads:
-        st.error("Please upload at least one document or audio file.")
     else:
-        with st.spinner("Generating training package..."):
-            # Extract text from documents
-            document_text = extract_text_from_files(document_uploads)
+        # Treat extracted handwritten notes as a valid source too
+        notes_text_present = bool(
+            (st.session_state.get("handwritten_notes_text", "") or "").strip()
+        )
 
-            # Transcribe audio
-            transcript_text = transcribe_audio_files(audio_uploads)
+        if not document_uploads and not audio_uploads and not notes_text_present:
+            st.error(
+                "Please upload at least one document, audio file, or extract handwritten notes."
+            )
+        else:
+            with st.spinner("Generating training package..."):
+                # Extract text from documents
+                document_text = extract_text_from_files(document_uploads)
 
-                        # Combine text and transcript
-            combined_text_parts = []
-            if document_text:
-                combined_text_parts.append(document_text)
-            if transcript_text:
-                combined_text_parts.append("[Audio Transcript]\n" + transcript_text)
+                # Transcribe audio
+                transcript_text = transcribe_audio_files(audio_uploads)
 
-            full_text = "\n\n".join(combined_text_parts).strip()
+                # Combine text and transcript
+                combined_text_parts = []
+                if document_text:
+                    combined_text_parts.append(document_text)
+                if transcript_text:
+                    combined_text_parts.append("[Audio Transcript]\n" + transcript_text)
 
-            # Append handwritten notes if present
-            notes_text = (st.session_state.get("handwritten_notes_text", "") or "").strip()
-            if notes_text:
-                if full_text:
+                full_text = "\n\n".join(combined_text_parts).strip()
+
+                # Append handwritten notes if present
+                notes_text = (st.session_state.get("handwritten_notes_text", "") or "").strip()
+                if notes_text:
+                    if full_text:
+                        full_text = (
+                            full_text
+                            + "\n\n=== Additional notes from instructor (handwritten) ===\n"
+                            + notes_text
+                        )
+                    else:
+                        full_text = (
+                            "=== Additional notes from instructor (handwritten) ===\n"
+                            + notes_text
+                        )
+
+                # If everything failed (no docs, no audio, no notes), fall back to a simple message
+                if not full_text:
                     full_text = (
-                        full_text
-                        + "\n\n=== Additional notes from instructor (handwritten) ===\n"
-                        + notes_text
-                    )
-                else:
-                    full_text = (
-                        "=== Additional notes from instructor (handwritten) ===\n"
-                        + notes_text
+                        "No usable source text was extracted. "
+                        "Create a generic but reasonable training package based only on the course title and class type."
                     )
 
-            # If everything failed (no docs, no audio, no notes), fall back to a simple message
-            if not full_text:
-                full_text = (
-                    "No usable source text was extracted. "
-                    "Create a generic but reasonable training package based only on the course title and class type."
-                )
+                # Call generators
+                outline = generate_class_outline(full_text, course_title, class_type)
+                instructor_guide = generate_instructor_guide(full_text, course_title, class_type)
+                video_script = generate_video_script(full_text, course_title, class_type)
+                quick_reference = generate_quick_reference(full_text, course_title, class_type)
+
+                # Store in session_state
+                st.session_state.generated_package = {
+                    "outline": outline,
+                    "instructor_guide": instructor_guide,
+                    "video_script": video_script,
+                    "quick_reference": quick_reference,
+                }
+                st.session_state.combined_text = full_text
+                st.session_state.tts_payload = None
+
+            st.success("Training package generated!")
 
             # Call generators
             outline = generate_class_outline(full_text, course_title, class_type)
