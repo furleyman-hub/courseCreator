@@ -218,13 +218,16 @@ def generate_class_outline(full_text: str, course_title: str, class_type: str) -
 def generate_instructor_guide(full_text: str, course_title: str, class_type: str) -> InstructorGuide:
     excerpt = _format_source_excerpt(full_text)
 
-    system_prompt = (
-        "You create detailed instructor design documents for live attorney training sessions. "
-        "Use the exact JSON schema provided. The front matter should match the structure of a "
-        "professional design document (training plan, audience, prerequisites, setup, checklists), "
-        "and 'sections' should represent the Instructional Framework topics. "
-        "Always reply with JSON only."
-    )
+system_prompt = (
+    "You create detailed instructor design documents for live or virtual training sessions. "
+    "Use the exact JSON schema provided. The front matter should match the structure of a "
+    "professional design document (training plan, audience, prerequisites, setup, checklists), "
+    "and 'sections' should represent the Instructional Framework topics. "
+    "The subject matter can be anything: software, processes, policies, or conceptual topics. "
+    "Focus on clear, actionable guidance for the instructor. "
+    "Always reply with JSON only."
+)
+
 
     user_prompt = (
         f"Produce an InstructorGuide JSON for '{course_title}' ({class_type}).\n"
@@ -273,42 +276,50 @@ def generate_video_script(full_text: str, course_title: str, class_type: str) ->
     excerpt = _format_source_excerpt(full_text)
 
     system_prompt = (
-        "You design detailed scripts for software screencast training videos, recorded in tools like Camtasia. "
-        "The videos show ONLY the application window and mouse cursor—no people, no webcam, no talking-head segments. "
-        "Each segment must include:\n"
-        "- A short, descriptive title\n"
-        "- Narration: exactly what the voice-over artist should say, in natural second person (\"you\"), concise and instructional\n"
-        "- Screen directions: precise, step-by-step on-screen actions (which window/worksheet, which menu, which button, "
-        "  where to click, what to type, when to zoom in, when to highlight cells/areas, when to pause for the user to see results)\n\n"
-        "Guidelines:\n"
-        "- Assume the viewer is watching a screen recording in Excel or similar tools, not a slide deck.\n"
-        "- Do NOT mention the instructor being on camera, facial expressions, body language, or classroom interactions.\n"
-        "- Keep each segment focused on a small, coherent task or concept (30–120 seconds of narration).\n"
-        "- Align narration tightly with screen actions: avoid describing actions that aren't shown, and avoid showing actions "
-        "  without narration unless you explicitly say \"pause briefly to let the viewer see the result\".\n"
-        "- Use plain, practical language appropriate for attorneys working with spreadsheets and legal workbooks.\n"
-        "Always reply with JSON only."
-    )
+      system_prompt = (
+    "You design detailed scripts for on-screen training videos, recorded as screencasts or "
+    "walkthroughs in tools like Camtasia. The viewer only sees the screen content and pointer, "
+    "not a person on camera. Each segment must include:\n"
+    "- A short, descriptive title\n"
+    "- Narration: exactly what the voice-over should say, in natural second person ('you'), "
+    "  concise and instructional\n"
+    "- Screen directions: precise, step-by-step on-screen actions (which page, screen, tab, "
+    "  menu, button, field, or content area to focus on; where to click; what to type; when "
+    "  to scroll or zoom; when to pause so the user can see the result)\n\n"
+    "Guidelines:\n"
+    "- Assume the viewer is watching a screen recording of the relevant application, document, "
+    "  or website, not a slide deck or talking head.\n"
+    "- Do NOT mention the instructor being on camera, facial expressions, body language, or "
+    "  classroom interactions.\n"
+    "- Keep each segment focused on a small, coherent task or concept (about 30–120 seconds of narration).\n"
+    "- Align narration tightly with screen actions: avoid describing actions that are not shown, "
+    "  and avoid silent on-screen actions unless you explicitly note a brief pause.\n"
+    "- Use plain, practical language appropriate for professionals learning to perform real tasks.\n"
+    "Always reply with JSON only."
+)
 
+    
     user_prompt = (
-        f"Draft a VideoScript JSON for the course '{course_title}' ({class_type}).\n"
-        f"The video is a screen-capture walkthrough (like a Camtasia recording) of the workflows, tools, and concepts "
-        f"described in the source text. Use on-screen actions and narration that are realistic for live workbooks.\n\n"
-        f"Source text for context:\n{excerpt}\n\n"
-        "Schema (use these exact property names):\n"
-        "{\n"
-        "  \"segments\": [\n"
-        "    {\n"
-        "      \"title\": str,\n"
-        "      \"narration\": str,\n"
-        "      \"screen_directions\": str,\n"
-        "      \"approx_duration_seconds\": int | null\n"
-        "    }\n"
-        "  ]\n"
-        "}\n"
-        "Make sure screen_directions are concrete (which sheet, which range, which menu/ribbon path, etc.), "
-        "and that narration never refers to a person on camera—only to what appears on the screen."
-    )
+    f"Draft a VideoScript JSON for the course '{course_title}' ({class_type}).\n"
+    f"The video is a screen-capture style walkthrough of the key workflows, concepts, or examples "
+    f"described in the source text. Use on-screen actions and narration that are realistic for how "
+    f"a user would interact with the actual content or system.\n\n"
+    f"Source text for context:\n{excerpt}\n\n"
+    "Schema (use these exact property names):\n"
+    "{\n"
+    "  \"segments\": [\n"
+    "    {\n"
+    "      \"title\": str,\n"
+    "      \"narration\": str,\n"
+    "      \"screen_directions\": str,\n"
+    "      \"approx_duration_seconds\": int | null\n"
+    "    }\n"
+    "  ]\n"
+    "}\n"
+    "Make sure screen_directions are concrete (which screen, tab, section, control, field, or content area), "
+    "and that narration never refers to a person on camera—only to what appears on the screen."
+)
+
 
     try:
         payload = _call_json_response(system_prompt, user_prompt)
@@ -325,46 +336,49 @@ def generate_video_script(full_text: str, course_title: str, class_type: str) ->
 def generate_quick_reference(full_text: str, course_title: str, class_type: str) -> QuickReferenceGuide:
     excerpt = _format_source_excerpt(full_text)
 
-    system_prompt = (
-        "You create succinct, software-focused Quick Reference Guides (QREFs) in Markdown for IT training. "
-        "The audience is attorneys and legal professionals using tools like Excel, Outlook, and other line-of-business apps. "
-        "You must follow these style rules:\n"
-        "- Use clear, numbered steps that begin with an action verb (Click, Type, Open, Press, Select, Choose, Drag).\n"
-        "- Focus on what the user does, not what happens to them; minimize the word 'you'.\n"
-        "- Bold UI elements, commands, and menu paths in Markdown (e.g., Click **Data** | **Filter**).\n"
-        "- Use a vertical bar `|` between menu/command path elements (e.g., **File** | **Print**).\n"
-        "- Do NOT say 'click on'; always say 'click'.\n"
-        "- For keystrokes, bold the key combination with no spaces around '+', e.g., **Ctrl+Z**, **Ctrl+Shift+L**.\n"
-        "- Italicize action results after the step when describing what appears on screen, e.g., '*The Save As dialog box displays.*'.\n"
-        "- Use 'dialog box' instead of 'window'; use 'displays' instead of 'appears' or 'opens'.\n"
-        "- Avoid 'button' (write 'Click **New**' instead of 'Click the New button').\n"
-        "- Bold text the user must type.\n"
-        "- Use hyphenation and spelling consistent with: double-click, drop-down, e-learning, e-mail; 'checkbox' and 'toolbar' as one word.\n"
-        "- Steps should be concise and task-focused, suitable for a one-page reference.\n"
-        "Always reply with JSON only."
-    )
+   system_prompt = (
+    "You create succinct, task-focused Quick Reference Guides (QREFs) in Markdown for training. "
+    "The topic can be any repeatable workflow: software tasks, business processes, or other procedures. "
+    "You must follow these style rules:\n"
+    "- Use clear, numbered steps that begin with an action verb (Click, Type, Open, Press, Select, Choose, Drag, Review, Compare, etc.).\n"
+    "- Focus on what the user does, not what happens to them; minimize the word 'you'.\n"
+    "- Bold UI elements, commands, menu paths, or key terms in Markdown (e.g., Click **File** | **Print**).\n"
+    "- Use a vertical bar `|` between menu/command path elements, where appropriate.\n"
+    "- Do NOT say 'click on'; always say 'click'.\n"
+    "- For keystrokes, bold the key combination with no spaces around '+', e.g., **Ctrl+Z**, **Ctrl+Shift+L**.\n"
+    "- Italicize action results after the step when describing what appears, changes, or updates on screen, "
+    "  for example: *The confirmation message displays.*\n"
+    "- Use 'dialog box' or 'screen' consistently if the context involves software; for non-software workflows, "
+    "  describe results in neutral terms (e.g., *The request is submitted for approval.*).\n"
+    "- Avoid referring to 'buttons' where possible; prefer 'Click **Label**'.\n"
+    "- Bold text that the user must type.\n"
+    "- Steps should be concise and task-focused, suitable for a one-page reference.\n"
+    "Always reply with JSON only."
+)
 
-    user_prompt = (
-        f"Produce a QuickReferenceGuide JSON object for '{course_title}' ({class_type}).\n"
-        f"Base the steps on this source text, focusing on concrete user actions in the software:\n"
-        f"{excerpt}\n\n"
-        "Schema (use these exact property names):\n"
-        "{\n"
-        "  \"steps\": [\n"
-        "    {\n"
-        "      \"step_number\": int,\n"
-        "      \"title\": str,\n"
-        "      \"action\": str,\n"
-        "      \"notes\": str | null\n"
-        "    }\n"
-        "  ]\n"
-        "}\n"
-        "Guidance:\n"
-        "- 'title' should be a short phrase describing the sub-task (e.g., 'Filter the current table by status').\n"
-        "- 'action' should contain the actual numbered instruction text in Markdown, including bold UI elements and italicized results as needed.\n"
-        "- If there is an important NOTE or TIP, put it in 'notes', starting with 'NOTE:' or 'TIP:' and formatted as Markdown.\n"
-        "- Steps should be ordered logically from start to finish of the workflow."
-    )
+
+   user_prompt = (
+    f"Produce a QuickReferenceGuide JSON object for '{course_title}' ({class_type}).\n"
+    f"Base the steps on this source text, focusing on concrete user actions and observable results:\n"
+    f"{excerpt}\n\n"
+    "Schema (use these exact property names):\n"
+    "{\n"
+    "  \"steps\": [\n"
+    "    {\n"
+    "      \"step_number\": int,\n"
+    "      \"title\": str,\n"
+    "      \"action\": str,\n"
+    "      \"notes\": str | null\n"
+    "    }\n"
+    "  ]\n"
+    "}\n"
+    "Guidance:\n"
+    "- 'title' should be a short phrase describing the sub-task (e.g., 'Submit the request for approval').\n"
+    "- 'action' should contain the actual numbered instruction text in Markdown, including bold elements and italicized results as needed.\n"
+    "- If there is an important NOTE or TIP, put it in 'notes', starting with 'NOTE:' or 'TIP:' and formatted as Markdown.\n"
+    "- Steps should be ordered logically from start to finish of the workflow."
+)
+
 
     try:
         payload = _call_json_response(system_prompt, user_prompt)
