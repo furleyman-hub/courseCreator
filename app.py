@@ -347,24 +347,6 @@ if generate_clicked:
 
             st.success("Training package generated!")
 
-            # Call generators
-            outline = generate_class_outline(full_text, course_title, class_type)
-            instructor_guide = generate_instructor_guide(full_text, course_title, class_type)
-            video_script = generate_video_script(full_text, course_title, class_type)
-            quick_reference = generate_quick_reference(full_text, course_title, class_type)
-
-            # Store in session_state
-            st.session_state.generated_package = {
-                "outline": outline,
-                "instructor_guide": instructor_guide,
-                "video_script": video_script,
-                "quick_reference": quick_reference,
-            }
-            st.session_state.combined_text = full_text
-            st.session_state.tts_payload = None
-
-        st.success("Training package generated!")
-
 
 # -------------------------------------------------------------------
 # Display results
@@ -449,4 +431,7 @@ if package:
     with st.expander("Show combined source text used for generation"):
         st.write(st.session_state.combined_text or "No source text available.")
 else:
-    st.info("Upload documents and/or audio, enter a title, and click **Generate Training Package** to begin.")
+    st.info(
+        "Upload documents and/or audio, enter a title, optionally extract handwritten notes, "
+        "and click **Generate Training Package** to begin."
+    )
