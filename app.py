@@ -167,10 +167,17 @@ def _render_qrg(qrg: QuickReferenceGuide) -> None:
         return
 
     for step in qrg.steps:
-        st.markdown(f"### Step {step.step_number}: {step.title}")
-        st.markdown(f"**Action:** {step.action}")
+        title = step.title or f"Step {step.step_number}"
+        st.markdown(f"### Step {step.step_number}: {title}")
+        if step.action:
+            st.markdown(step.action)
         if step.notes:
-            st.markdown(f"**Notes:** {step.notes}")
+            notes_text = step.notes.strip()
+            if notes_text.upper().startswith("NOTE:") or notes_text.upper().startswith("TIP:"):
+                st.markdown(f"> {notes_text}")
+            else:
+                st.markdown(f"> **NOTE:** {notes_text}")
+
 
 
 # -------------------------------------------------------------------
