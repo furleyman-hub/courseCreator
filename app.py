@@ -315,15 +315,21 @@ if package:
             key="download_video_script",
         )
 
+        # Generate TTS audio
         if st.button("Generate Narration Audio (TTS)", key="generate_tts_button"):
             with st.spinner("Generating narration audio..."):
                 st.session_state.tts_payload = synthesize_narration_audio(
                     package["video_script"]
                 )
 
+        # If TTS exists, show preview players + download buttons
         if st.session_state.tts_payload:
-            st.info("Download generated narration segments below.")
+            st.info("Preview and download narration segments below.")
             for filename, payload in st.session_state.tts_payload.items():
+                st.markdown(f"**{filename}**")
+                # Inline audio player preview
+                st.audio(payload, format="audio/wav")
+                # Download button
                 st.download_button(
                     f"Download {filename}",
                     payload,
