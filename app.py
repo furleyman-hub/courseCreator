@@ -1,6 +1,8 @@
 """Streamlit app for generating training packages from documents and audio."""
 
 from __future__ import annotations
+from notes_ocr import extract_text_from_note_images
+
 
 import streamlit as st
 
@@ -212,6 +214,51 @@ document_uploads = st.file_uploader(
     accept_multiple_files=True,
     key="document_uploads",
 )
+
+# ---------------------------------------------
+# Step 1: Optional handwritten notes upload
+# ---------------------------------------------
+st.subheader("Optional: Handwritten notes")
+
+# Initialize session state slot once
+if "handwritten_notes_text" not in st.session_state:
+    st.session_state.handwritten_notes_text = ""
+
+note_images = st.file_uploader(
+    "Upload photos of handwritten notes to include as extra context",
+    type=["jpg", "jpeg", "png", "heic", "webp"],
+    accept_multiple_files=True,
+    key="handwritten_images",
+)
+
+col_notes_btn, col_notes_clear = st.columns([1, 1])
+
+with col_notes_btn:
+    if note_images and st.button("Extract text from notes", use_container_width=True):
+        with st.spinner("Reading notes from images..."):
+            notes_text = extract_text_from_note_images(note_images)
+        st.session_state.handwritten_notes_text = notes_text or ""
+        st.success("Handwritten notes extracted. Review below.")
+
+with col_notes_clear:
+    if st.session_state.handwritten_notes_text and st.button(
+        "Clear notes", use_container_width=True
+    ):
+        st.session_state.handwritten_notes_text = ""
+
+if st.session_state.handwritten_notes_text:
+    st.markdown("**Handwritten notes (review & edit):**")
+    st.session_state.handwritten_notes_text = st.text_area(
+        "Edit if needed before generating course materials:",
+        st.session_state.handwritten_notes_text,
+        height=250,
+    )
+else:
+    st.caption(
+        "If you upload handwritten notes and extract them, the text will appear here "
+        "for review and editing before it is used."
+    )
+
 
 audio_uploads = st.file_uploader(
     "Upload audio files for transcription (optional)",
