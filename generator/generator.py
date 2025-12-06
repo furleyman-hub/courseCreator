@@ -273,13 +273,41 @@ def generate_video_script(full_text: str, course_title: str, class_type: str) ->
     excerpt = _format_source_excerpt(full_text)
 
     system_prompt = (
-        "You write video scripts with narration and precise screen directions. Always reply with JSON only."
+        "You design detailed scripts for software screencast training videos, recorded in tools like Camtasia. "
+        "The videos show ONLY the application window and mouse cursor—no people, no webcam, no talking-head segments. "
+        "Each segment must include:\n"
+        "- A short, descriptive title\n"
+        "- Narration: exactly what the voice-over artist should say, in natural second person (\"you\"), concise and instructional\n"
+        "- Screen directions: precise, step-by-step on-screen actions (which window/worksheet, which menu, which button, "
+        "  where to click, what to type, when to zoom in, when to highlight cells/areas, when to pause for the user to see results)\n\n"
+        "Guidelines:\n"
+        "- Assume the viewer is watching a screen recording in Excel or similar tools, not a slide deck.\n"
+        "- Do NOT mention the instructor being on camera, facial expressions, body language, or classroom interactions.\n"
+        "- Keep each segment focused on a small, coherent task or concept (30–120 seconds of narration).\n"
+        "- Align narration tightly with screen actions: avoid describing actions that aren't shown, and avoid showing actions "
+        "  without narration unless you explicitly say \"pause briefly to let the viewer see the result\".\n"
+        "- Use plain, practical language appropriate for attorneys working with spreadsheets and legal workbooks.\n"
+        "Always reply with JSON only."
     )
 
     user_prompt = (
-        f"Draft a VideoScript JSON for '{course_title}' ({class_type}).\n"
-        f"Source text:\n{excerpt}\n\n"
-        "Schema: {segments: [ {title, narration, screen_directions, approx_duration_seconds} ]}"
+        f"Draft a VideoScript JSON for the course '{course_title}' ({class_type}).\n"
+        f"The video is a screen-capture walkthrough (like a Camtasia recording) of the workflows, tools, and concepts "
+        f"described in the source text. Use on-screen actions and narration that are realistic for live workbooks.\n\n"
+        f"Source text for context:\n{excerpt}\n\n"
+        "Schema (use these exact property names):\n"
+        "{\n"
+        "  \"segments\": [\n"
+        "    {\n"
+        "      \"title\": str,\n"
+        "      \"narration\": str,\n"
+        "      \"screen_directions\": str,\n"
+        "      \"approx_duration_seconds\": int | null\n"
+        "    }\n"
+        "  ]\n"
+        "}\n"
+        "Make sure screen_directions are concrete (which sheet, which range, which menu/ribbon path, etc.), "
+        "and that narration never refers to a person on camera—only to what appears on the screen."
     )
 
     try:
