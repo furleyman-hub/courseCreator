@@ -48,7 +48,7 @@ def _build_combined_source_text(full_text: str) -> str:
     stored in Streamlit session_state under 'handwritten_notes_text'.
 
     This lets handwritten notes (OCR from images) act as instructor
-    intent/context without changing any function signatures.
+    intent/context without changing any public function signatures.
     """
     base_text = (full_text or "").strip()
 
@@ -428,11 +428,3 @@ def generate_quick_reference(full_text: str, course_title: str, class_type: str)
         st.error("Quick reference generation failed.")
 
     return QuickReferenceGuide(steps=[])
-
-
-__all__ = [
-    "generate_class_outline",
-    "generate_instructor_guide",
-    "generate_quick_reference",
-    "generate_video_script",
-]
