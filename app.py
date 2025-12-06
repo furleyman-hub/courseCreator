@@ -290,15 +290,31 @@ if generate_clicked:
             # Transcribe audio
             transcript_text = transcribe_audio_files(audio_uploads)
 
-            # Combine text and transcript
+                        # Combine text and transcript
             combined_text_parts = []
             if document_text:
                 combined_text_parts.append(document_text)
             if transcript_text:
                 combined_text_parts.append("[Audio Transcript]\n" + transcript_text)
+
             full_text = "\n\n".join(combined_text_parts).strip()
 
-            # If everything failed, fall back to a simple message so the LLM has *something*
+            # Append handwritten notes if present
+            notes_text = (st.session_state.get("handwritten_notes_text", "") or "").strip()
+            if notes_text:
+                if full_text:
+                    full_text = (
+                        full_text
+                        + "\n\n=== Additional notes from instructor (handwritten) ===\n"
+                        + notes_text
+                    )
+                else:
+                    full_text = (
+                        "=== Additional notes from instructor (handwritten) ===\n"
+                        + notes_text
+                    )
+
+            # If everything failed (no docs, no audio, no notes), fall back to a simple message
             if not full_text:
                 full_text = (
                     "No usable source text was extracted. "
