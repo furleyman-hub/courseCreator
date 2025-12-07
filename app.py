@@ -1,10 +1,10 @@
 """Streamlit app for generating training packages from documents and audio."""
 
 from __future__ import annotations
-from notes_ocr import extract_text_from_note_images
-
 
 import streamlit as st
+
+from notes_ocr import extract_text_from_note_images
 
 from generator import (
     ClassOutline,
@@ -24,6 +24,53 @@ from generator import (
     video_script_to_markdown,
 )
 
+# -------------------------------------------------------------------
+# Page config + CSS
+# -------------------------------------------------------------------
+
+st.set_page_config(page_title="Training Class Generator", layout="wide")
+
+# Narrow, compact layout
+st.markdown(
+    """
+<style>
+    /* Make main content narrower and centered */
+    .block-container {
+        max-width: 900px !important;
+        padding-top: 1.2rem !important;
+        padding-bottom: 1rem !important;
+    }
+
+    /* Tighten vertical spacing between widgets */
+    div.stMarkdown, div.stTextInput, div.stSelectbox, div.stFileUploader,
+    div[data-testid="stHorizontalBlock"] {
+        margin-bottom: 0.3rem !important;
+    }
+
+    /* Section headers smaller and tighter */
+    h2, h3 {
+        margin-top: 0.6rem !important;
+        margin-bottom: 0.3rem !important;
+    }
+
+    h2 {
+        font-size: 1.25rem !important;
+        font-weight: 600 !important;
+    }
+
+    /* Dividers closer together */
+    hr {
+        margin: 0.6rem 0 !important;
+    }
+
+    /* File uploader padding a bit smaller */
+    section[data-testid="stFileUploadDropzone"] {
+        padding: 0.35rem !important;
+    }
+</style>
+""",
+    unsafe_allow_html=True,
+)
 
 # -------------------------------------------------------------------
 # Render helpers
@@ -86,7 +133,9 @@ def _render_instructor_guide(guide: InstructorGuide) -> None:
 
         if guide.required_materials_and_equipment:
             st.markdown("**Required materials and equipment**")
-            st.markdown("\n".join(f"- {item}" for item in guide.required_materials_and_equipment))
+            st.markdown(
+                "\n".join(f"- {item}" for item in guide.required_materials_and_equipment)
+            )
 
         if guide.instructor_setup:
             st.markdown("**Setup – instructor**")
@@ -131,15 +180,21 @@ def _render_instructor_guide(guide: InstructorGuide) -> None:
         for section in guide.sections:
             st.markdown(f"### Topic: {section.title}")
             if section.estimated_time_minutes:
-                st.markdown(f"**Estimated Time:** {section.estimated_time_minutes} minutes")
+                st.markdown(
+                    f"**Estimated Time:** {section.estimated_time_minutes} minutes"
+                )
 
             if section.learning_objectives:
                 st.markdown("**Learning Objectives**")
-                st.markdown("\n".join(f"- {obj}" for obj in section.learning_objectives))
+                st.markdown(
+                    "\n".join(f"- {obj}" for obj in section.learning_objectives)
+                )
 
             if section.instructional_steps:
                 st.markdown("**Instructional Steps:**")
-                st.markdown("\n".join(f"- {step}" for step in section.instructional_steps))
+                st.markdown(
+                    "\n".join(f"- {step}" for step in section.instructional_steps)
+                )
 
             if section.key_points:
                 st.markdown("**Key Points:**")
@@ -175,156 +230,132 @@ def _render_qrg(qrg: QuickReferenceGuide) -> None:
             st.markdown(step.action)
         if step.notes:
             notes_text = step.notes.strip()
-            if notes_text.upper().startswith("NOTE:") or notes_text.upper().startswith("TIP:"):
+            if notes_text.upper().startswith("NOTE:") or notes_text.upper().startswith(
+                "TIP:"
+            ):
                 st.markdown(f"> {notes_text}")
             else:
                 st.markdown(f"> **NOTE:** {notes_text}")
-
 
 
 # -------------------------------------------------------------------
 # App layout & state
 # -------------------------------------------------------------------
 
-st.set_page_config(page_title="Training Class Generator", layout="wide")
-
-st.set_page_config""", unsafe_allow_html=True)
-
-
 st.title("Training Class Generator")
 st.write(
-    "Upload training documents and/or audio, and generate a class outline, "
-    "instructor guide, video script, and quick reference guide."
+    "Upload training documents, audio, and/or handwritten notes to generate a "
+    "class outline, instructor guide, video script, and quick reference guide."
 )
 
 # Initialize session state containers
 st.session_state.setdefault("generated_package", None)
 st.session_state.setdefault("combined_text", "")
 st.session_state.setdefault("tts_payload", None)
+st.session_state.setdefault("handwritten_notes_text", "")
 
 # -------------------------------------------------------------------
-# Inputs (course details)
+# Inputs – 2-column layout
 # -------------------------------------------------------------------
 
-st.subheader("1. Course details")
+st.markdown("### 1. Course setup and sources")
 
-course_title = st.text_input("Course Title", value="", key="course_title_input")
+# Row 1: Course details (left) + training docs (right)
+col_course, col_docs = st.columns([1.1, 1.9])
 
-class_type = st.selectbox(
-    "Class Type",
-    ["Full Class", "Short Video", "Quick Reference Only"],
-    key="class_type_select",
-)
+with col_course:
+    st.subheader("Course details")
+    course_title = st.text_input("Course Title", value="", key="course_title_input")
 
-st.divider()
-
-# -------------------------------------------------------------------
-# Section 2: Upload training/source documents
-# -------------------------------------------------------------------
-
-st.subheader("2. Upload training documents")
-
-st.caption(
-    "Upload any slide decks, design documents, reference guides, or other written "
-    "materials you want the model to use as the primary source."
-)
-
-document_uploads = st.file_uploader(
-    "Training/source documents (PDF, DOCX, TXT)",
-    type=["pdf", "docx", "txt"],
-    accept_multiple_files=True,
-    key="document_uploads",
-)
-
-st.divider()
-
-# -------------------------------------------------------------------
-# Section 3: Upload handwritten notes (images)
-# -------------------------------------------------------------------
-
-st.subheader("3. Handwritten notes (optional)")
-
-st.caption(
-    "Upload photos or screenshots of your handwritten notes. The app will OCR them, "
-    "let you edit the text, and include it alongside the documents/audio."
-)
-
-# Initialize session state slot once
-if "handwritten_notes_text" not in st.session_state:
-    st.session_state.handwritten_notes_text = ""
-
-note_images = st.file_uploader(
-    "Note images (JPG, PNG, HEIC, WEBP)",
-    type=["jpg", "jpeg", "png", "heic", "webp"],
-    accept_multiple_files=True,
-    key="handwritten_images",
-)
-
-col_notes_btn, col_notes_clear = st.columns([1, 1])
-
-with col_notes_btn:
-    if note_images and st.button("Extract text from notes", use_container_width=True):
-        with st.spinner("Reading notes from images..."):
-            notes_text = extract_text_from_note_images(note_images)
-        st.session_state.handwritten_notes_text = notes_text or ""
-        st.success("Handwritten notes extracted. Review below.")
-
-with col_notes_clear:
-    if st.session_state.handwritten_notes_text and st.button(
-        "Clear notes", use_container_width=True
-    ):
-        st.session_state.handwritten_notes_text = ""
-
-if st.session_state.handwritten_notes_text:
-    st.markdown("**Handwritten notes (review & edit before generating):**")
-    st.session_state.handwritten_notes_text = st.text_area(
-        "Edit notes text",
-        st.session_state.handwritten_notes_text,
-        height=250,
+    class_type = st.selectbox(
+        "Class Type",
+        ["Full Class", "Short Video", "Quick Reference Only"],
+        key="class_type_select",
     )
-else:
+
+with col_docs:
+    st.subheader("Training documents")
     st.caption(
-        "After extracting notes, the recognized text will appear here so you can review and clean it up."
+        "Upload slide decks, design docs, reference guides, or other written "
+        "materials to use as the main source."
+    )
+    document_uploads = st.file_uploader(
+        "Training/source documents (PDF, DOCX, TXT)",
+        type=["pdf", "docx", "txt"],
+        accept_multiple_files=True,
+        key="document_uploads",
     )
 
 st.divider()
 
-# -------------------------------------------------------------------
-# Section 4: Upload audio (optional)
-# -------------------------------------------------------------------
+# Row 2: Handwritten notes (left) + audio + generate (right)
+col_notes, col_audio = st.columns([1.8, 1.2])
 
-st.subheader("4. Audio recordings (optional)")
+with col_notes:
+    st.subheader("Handwritten notes (optional)")
+    st.caption(
+        "Upload photos or screenshots of handwritten notes. The app will read them, "
+        "let you edit the text, and include it with the other sources."
+    )
 
-st.caption(
-    "Upload recordings of prior classes, walkthroughs, or explanation sessions. "
-    "The transcript will be folded into the source text."
-)
+    note_images = st.file_uploader(
+        "Note images (JPG, PNG, HEIC, WEBP)",
+        type=["jpg", "jpeg", "png", "heic", "webp"],
+        accept_multiple_files=True,
+        key="handwritten_images",
+    )
 
-audio_uploads = st.file_uploader(
-    "Audio files (WAV, MP3, M4A)",
-    type=["wav", "mp3", "m4a"],
-    accept_multiple_files=True,
-    key="audio_uploads",
-)
+    notes_btn_col, notes_clear_col = st.columns(2)
 
-st.divider()
+    with notes_btn_col:
+        if note_images and st.button("Extract text from notes", use_container_width=True):
+            with st.spinner("Reading notes from images..."):
+                notes_text = extract_text_from_note_images(note_images)
+            st.session_state.handwritten_notes_text = notes_text or ""
+            st.success("Handwritten notes extracted. Review below.")
 
-# -------------------------------------------------------------------
-# Section 5: Generate
-# -------------------------------------------------------------------
+    with notes_clear_col:
+        if st.session_state.handwritten_notes_text and st.button(
+            "Clear notes", use_container_width=True
+        ):
+            st.session_state.handwritten_notes_text = ""
 
-st.subheader("5. Generate training package")
+    if st.session_state.handwritten_notes_text:
+        st.markdown("**Handwritten notes (review & edit before generating):**")
+        st.session_state.handwritten_notes_text = st.text_area(
+            "Edit notes text",
+            st.session_state.handwritten_notes_text,
+            height=220,
+        )
+    else:
+        st.caption(
+            "After extracting notes, the recognized text will appear here so you can review and clean it up."
+        )
 
-st.caption(
-    "When you’re ready, click Generate. The app will use whatever sources you’ve provided: "
-    "documents, audio transcripts, and handwritten notes."
-)
+with col_audio:
+    st.subheader("Audio (optional)")
+    st.caption(
+        "Upload recordings of prior classes or walkthroughs. "
+        "Transcripts will be folded into the source text."
+    )
+    audio_uploads = st.file_uploader(
+        "Audio files (WAV, MP3, M4A)",
+        type=["wav", "mp3", "m4a"],
+        accept_multiple_files=True,
+        key="audio_uploads",
+    )
 
-generate_clicked = st.button(
-    "Generate Training Package",
-    type="primary",
-    key="generate_package_button",
-)
+    st.markdown("")  # small spacer
+    st.subheader("Generate")
+    st.caption(
+        "Use whatever sources you’ve provided: documents, audio transcripts, and handwritten notes."
+    )
+    generate_clicked = st.button(
+        "Generate Training Package",
+        type="primary",
+        key="generate_package_button",
+        use_container_width=True,
+    )
 
 # -------------------------------------------------------------------
 # Generation flow
@@ -356,12 +387,16 @@ if generate_clicked:
                 if document_text:
                     combined_text_parts.append(document_text)
                 if transcript_text:
-                    combined_text_parts.append("[Audio Transcript]\n" + transcript_text)
+                    combined_text_parts.append(
+                        "[Audio Transcript]\n" + transcript_text
+                    )
 
                 full_text = "\n\n".join(combined_text_parts).strip()
 
                 # Append handwritten notes if present
-                notes_text = (st.session_state.get("handwritten_notes_text", "") or "").strip()
+                notes_text = (
+                    st.session_state.get("handwritten_notes_text", "") or ""
+                ).strip()
                 if notes_text:
                     if full_text:
                         full_text = (
@@ -384,9 +419,15 @@ if generate_clicked:
 
                 # Call generators
                 outline = generate_class_outline(full_text, course_title, class_type)
-                instructor_guide = generate_instructor_guide(full_text, course_title, class_type)
-                video_script = generate_video_script(full_text, course_title, class_type)
-                quick_reference = generate_quick_reference(full_text, course_title, class_type)
+                instructor_guide = generate_instructor_guide(
+                    full_text, course_title, class_type
+                )
+                video_script = generate_video_script(
+                    full_text, course_title, class_type
+                )
+                quick_reference = generate_quick_reference(
+                    full_text, course_title, class_type
+                )
 
                 # Store in session_state
                 st.session_state.generated_package = {
@@ -399,7 +440,6 @@ if generate_clicked:
                 st.session_state.tts_payload = None
 
             st.success("Training package generated!")
-
 
 # -------------------------------------------------------------------
 # Display results
@@ -458,9 +498,7 @@ if package:
             st.info("Preview and download narration segments below.")
             for filename, payload in st.session_state.tts_payload.items():
                 st.markdown(f"**{filename}**")
-                # Inline audio player preview
                 st.audio(payload, format="audio/wav")
-                # Download button
                 st.download_button(
                     f"Download {filename}",
                     payload,
