@@ -203,7 +203,7 @@ st.session_state.setdefault("tts_payload", None)
 # Inputs (course details)
 # -------------------------------------------------------------------
 
-st.markdown("## 1. Course details")
+st.subheader("1. Course details")
 
 course_title = st.text_input("Course Title", value="", key="course_title_input")
 
@@ -219,7 +219,7 @@ st.divider()
 # Section 2: Upload training/source documents
 # -------------------------------------------------------------------
 
-st.markdown("## 2. Upload training documents")
+st.subheader("2. Upload training documents")
 
 st.caption(
     "Upload any slide decks, design documents, reference guides, or other written "
@@ -239,7 +239,7 @@ st.divider()
 # Section 3: Upload handwritten notes (images)
 # -------------------------------------------------------------------
 
-st.markdown("## 3. Handwritten notes (optional)")
+st.subheader("3. Handwritten notes (optional)")
 
 st.caption(
     "Upload photos or screenshots of your handwritten notes. The app will OCR them, "
@@ -290,7 +290,7 @@ st.divider()
 # Section 4: Upload audio (optional)
 # -------------------------------------------------------------------
 
-st.markdown("## 4. Audio recordings (optional)")
+st.subheader("4. Audio recordings (optional)")
 
 st.caption(
     "Upload recordings of prior classes, walkthroughs, or explanation sessions. "
@@ -310,7 +310,7 @@ st.divider()
 # Section 5: Generate
 # -------------------------------------------------------------------
 
-st.markdown("## 5. Generate training package")
+st.subheader("5. Generate training package")
 
 st.caption(
     "When you’re ready, click Generate. The app will use whatever sources you’ve provided: "
