@@ -188,6 +188,51 @@ def _render_qrg(qrg: QuickReferenceGuide) -> None:
 
 st.set_page_config(page_title="Training Class Generator", layout="wide")
 
+st.markdown("""
+<style>
+
+    /* Reduce vertical spacing between ALL streamlit blocks */
+    .block-container {
+        padding-top: 1.5rem !important;
+        padding-bottom: 1rem !important;
+    }
+
+    /* Reduce default spacing between widgets */
+    div.stMarkdown, div.stTextInput, div.stSelectbox, div.stFileUploader {
+        margin-bottom: 0.4rem !important;
+    }
+
+    /* Tighten up subheader spacing */
+    h2, h3 {
+        margin-top: 0.8rem !important;
+        margin-bottom: 0.4rem !important;
+    }
+
+    /* Make section headers slightly smaller */
+    h2 {
+        font-size: 1.25rem !important;
+        font-weight: 600 !important;
+    }
+
+    /* Shrink divider spacing */
+    hr {
+        margin: 0.8rem 0 !important;
+    }
+
+    /* Tighten file uploader box */
+    section[data-testid="stFileUploadDropzone"] {
+        padding: 0.4rem !important;
+    }
+
+    /* Reduce spacing inside the sidebar too (if used) */
+    .css-1d391kg {
+        padding-top: 0.5rem !important;
+    }
+
+</style>
+""", unsafe_allow_html=True)
+
+
 st.title("Training Class Generator")
 st.write(
     "Upload training documents and/or audio, and generate a class outline, "
