@@ -199,7 +199,12 @@ st.session_state.setdefault("generated_package", None)
 st.session_state.setdefault("combined_text", "")
 st.session_state.setdefault("tts_payload", None)
 
-# Inputs (single set of widgets with explicit keys)
+# -------------------------------------------------------------------
+# Inputs (course details)
+# -------------------------------------------------------------------
+
+st.markdown("## 1. Course details")
+
 course_title = st.text_input("Course Title", value="", key="course_title_input")
 
 class_type = st.selectbox(
@@ -208,24 +213,45 @@ class_type = st.selectbox(
     key="class_type_select",
 )
 
+st.divider()
+
+# -------------------------------------------------------------------
+# Section 2: Upload training/source documents
+# -------------------------------------------------------------------
+
+st.markdown("## 2. Upload training documents")
+
+st.caption(
+    "Upload any slide decks, design documents, reference guides, or other written "
+    "materials you want the model to use as the primary source."
+)
+
 document_uploads = st.file_uploader(
-    "Upload training/source documents (PDF, DOCX, TXT)",
+    "Training/source documents (PDF, DOCX, TXT)",
     type=["pdf", "docx", "txt"],
     accept_multiple_files=True,
     key="document_uploads",
 )
 
-# ---------------------------------------------
-# Step 1: Optional handwritten notes upload
-# ---------------------------------------------
-st.subheader("Optional: Handwritten notes")
+st.divider()
+
+# -------------------------------------------------------------------
+# Section 3: Upload handwritten notes (images)
+# -------------------------------------------------------------------
+
+st.markdown("## 3. Handwritten notes (optional)")
+
+st.caption(
+    "Upload photos or screenshots of your handwritten notes. The app will OCR them, "
+    "let you edit the text, and include it alongside the documents/audio."
+)
 
 # Initialize session state slot once
 if "handwritten_notes_text" not in st.session_state:
     st.session_state.handwritten_notes_text = ""
 
 note_images = st.file_uploader(
-    "Upload photos of handwritten notes to include as extra context",
+    "Note images (JPG, PNG, HEIC, WEBP)",
     type=["jpg", "jpeg", "png", "heic", "webp"],
     accept_multiple_files=True,
     key="handwritten_images",
@@ -247,24 +273,48 @@ with col_notes_clear:
         st.session_state.handwritten_notes_text = ""
 
 if st.session_state.handwritten_notes_text:
-    st.markdown("**Handwritten notes (review & edit):**")
+    st.markdown("**Handwritten notes (review & edit before generating):**")
     st.session_state.handwritten_notes_text = st.text_area(
-        "Edit if needed before generating course materials:",
+        "Edit notes text",
         st.session_state.handwritten_notes_text,
         height=250,
     )
 else:
     st.caption(
-        "If you upload handwritten notes and extract them, the text will appear here "
-        "for review and editing before it is used."
+        "After extracting notes, the recognized text will appear here so you can review and clean it up."
     )
 
+st.divider()
+
+# -------------------------------------------------------------------
+# Section 4: Upload audio (optional)
+# -------------------------------------------------------------------
+
+st.markdown("## 4. Audio recordings (optional)")
+
+st.caption(
+    "Upload recordings of prior classes, walkthroughs, or explanation sessions. "
+    "The transcript will be folded into the source text."
+)
 
 audio_uploads = st.file_uploader(
-    "Upload audio files for transcription (optional)",
+    "Audio files (WAV, MP3, M4A)",
     type=["wav", "mp3", "m4a"],
     accept_multiple_files=True,
     key="audio_uploads",
+)
+
+st.divider()
+
+# -------------------------------------------------------------------
+# Section 5: Generate
+# -------------------------------------------------------------------
+
+st.markdown("## 5. Generate training package")
+
+st.caption(
+    "When you’re ready, click Generate. The app will use whatever sources you’ve provided: "
+    "documents, audio transcripts, and handwritten notes."
 )
 
 generate_clicked = st.button(
