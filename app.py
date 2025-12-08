@@ -249,6 +249,23 @@ def _render_qrg(qrg: QuickReferenceGuide) -> None:
                 st.markdown(f"> **NOTE:** {notes_text}")
 
 
+def _build_speakable_narration(script: VideoScript) -> str:
+    """
+    Build a plain narration-only script from the VideoScript,
+    omitting headings and screen directions.
+    """
+    if not script or not getattr(script, "segments", None):
+        return ""
+
+    chunks: list[str] = []
+    for segment in script.segments:
+        if segment.narration:
+            text = segment.narration.strip()
+            if text:
+                chunks.append(text)
+    return "\n\n".join(chunks).strip()
+
+
 # -------------------------------------------------------------------
 # App layout & state
 # -------------------------------------------------------------------
@@ -509,11 +526,12 @@ if package:
         st.markdown("---")
         st.subheader("HeyGen Avatar Video")
 
-        # Editable script to send to HeyGen (default: markdown representation of video script)
-        heygen_script_default = video_md or ""
+        # Build narration-only default text for HeyGen (no headings/screen directions)
+        narration_default = _build_speakable_narration(package["video_script"])
+
         heygen_script_text = st.text_area(
-            "Script to send to HeyGen (edit as needed before generating)",
-            value=heygen_script_default,
+            "Script to send to HeyGen (narration only by default – edit as needed)",
+            value=narration_default,
             height=250,
         )
 
