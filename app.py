@@ -362,7 +362,7 @@ with col_audio:
     st.markdown("")  # small spacer
     st.subheader("Generate")
     st.caption(
-        "Use whatever sources you’ve provided: documents, audio transcripts, and handwritten notes."
+        "Use whatever sources you have provided: documents, audio transcripts, and handwritten notes."
     )
     generate_clicked = st.button(
         "Generate Training Package",
@@ -531,52 +531,63 @@ if package:
                 "Uses the default HeyGen avatar and voice IDs configured in Streamlit secrets."
             )
 
-            else:
-        # Enforce HeyGen's 5000-character limit for input_text
-        # Leave a little safety margin for any invisible characters.
-        max_chars = 4800
-        script_to_send = heygen_script_text.strip()
-        if len(script_to_send) > max_chars:
-            script_to_send = script_to_send[:max_chars]
-            st.warning(
-                f"Script is longer than 5000 characters. "
-                f"Only the first {max_chars} characters were sent to HeyGen."
-            )
-
-        try:
-            with st.spinner("Submitting script to HeyGen..."):
-                video_id = heygen_client.create_avatar_video(
-                    script_text=script_to_send,
-                    avatar_id=DEFAULT_HEYGEN_AVATAR_ID,
-                    voice_id=DEFAULT_HEYGEN_VOICE_ID,
-                    test=False,
-                    background_color=bg_color,
+        if generate_heygen_clicked:
+            if not heygen_script_text.strip():
+                st.error("No script text to send to HeyGen.")
+            elif not heygen_client.HEYGEN_API_KEY:
+                st.error(
+                    "HEYGEN_API_KEY is not configured. Add it to st.secrets['HEYGEN_API_KEY']."
                 )
-                st.session_state.heygen_video_id = video_id
-
-            with st.spinner("Waiting for HeyGen to render the video..."):
-                status_data = heygen_client.wait_for_video(video_id)
-
-            data = status_data.get("data", status_data)
-            status = data.get("status")
-            video_url = data.get("video_url") or data.get("video_url_caption")
-
-            st.session_state.heygen_video_status = status
-            st.session_state.heygen_video_url = video_url
-
-            st.success(f"HeyGen video status: {status}")
-            if status == "completed" and video_url:
-                st.video(video_url)
-                st.text_input("Video URL", value=video_url)
-            else:
-                st.warning(
-                    "Video did not complete successfully. "
-                    "Check the HeyGen dashboard for details."
+            elif not DEFAULT_HEYGEN_AVATAR_ID or not DEFAULT_HEYGEN_VOICE_ID:
+                st.error(
+                    "Default HeyGen avatar or voice ID is not configured. "
+                    "Add HEYGEN_DEFAULT_AVATAR_ID and HEYGEN_DEFAULT_VOICE_ID to st.secrets."
                 )
-        except heygen_client.HeyGenError as e:
-            st.error(f"HeyGen error: {e}")
-        except Exception as e:
-            st.error(f"Unexpected error while generating HeyGen video: {e}")
+            else:
+                # Enforce HeyGen input_text limit with a safety margin
+                max_chars = 4800
+                script_to_send = heygen_script_text.strip()
+                if len(script_to_send) > max_chars:
+                    script_to_send = script_to_send[:max_chars]
+                    st.warning(
+                        f"Script is longer than 5000 characters. "
+                        f"Only the first {max_chars} characters were sent to HeyGen."
+                    )
+
+                try:
+                    with st.spinner("Submitting script to HeyGen..."):
+                        video_id = heygen_client.create_avatar_video(
+                            script_text=script_to_send,
+                            avatar_id=DEFAULT_HEYGEN_AVATAR_ID,
+                            voice_id=DEFAULT_HEYGEN_VOICE_ID,
+                            test=False,
+                            background_color=bg_color,
+                        )
+                        st.session_state.heygen_video_id = video_id
+
+                    with st.spinner("Waiting for HeyGen to render the video..."):
+                        status_data = heygen_client.wait_for_video(video_id)
+
+                    data = status_data.get("data", status_data)
+                    status = data.get("status")
+                    video_url = data.get("video_url") or data.get("video_url_caption")
+
+                    st.session_state.heygen_video_status = status
+                    st.session_state.heygen_video_url = video_url
+
+                    st.success(f"HeyGen video status: {status}")
+                    if status == "completed" and video_url:
+                        st.video(video_url)
+                        st.text_input("Video URL", value=video_url)
+                    else:
+                        st.warning(
+                            "Video did not complete successfully. "
+                            "Check the HeyGen dashboard for details."
+                        )
+                except heygen_client.HeyGenError as e:
+                    st.error(f"HeyGen error: {e}")
+                except Exception as e:
+                    st.error(f"Unexpected error while generating HeyGen video: {e}")
 
         # Show last HeyGen result if available
         if st.session_state.heygen_video_id:
@@ -601,7 +612,7 @@ if package:
                     package["video_script"]
                 )
 
-        # If TTS exists, show preview players + download buttons
+        # If TTS exists, show preview players and download buttons
         if st.session_state.tts_payload:
             st.info("Preview and download narration segments below.")
             for filename, payload in st.session_state.tts_payload.items():
@@ -626,7 +637,7 @@ if package:
             key="download_qrg",
         )
 
-    # Combined source text (for debugging / transparency)
+    # Combined source text (for debugging and transparency)
     with st.expander("Show combined source text used for generation"):
         st.write(st.session_state.combined_text or "No source text available.")
 else:
