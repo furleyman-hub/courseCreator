@@ -578,10 +578,39 @@ if package:
                             background_color=bg_color,
                         )
                         st.session_state.heygen_video_id = video_id
+                        st.session_state.heygen_video_status = "submitted"
+                        st.session_state.heygen_video_url = None
 
-                    with st.spinner("Waiting for HeyGen to render the video..."):
-                        status_data = heygen_client.wait_for_video(video_id)
+                    st.success(
+                        f"HeyGen request submitted. Video ID: {st.session_state.heygen_video_id}"
+                    )
+                except heygen_client.HeyGenError as e:
+                    st.error(f"HeyGen error: {e}")
+                except Exception as e:
+                    st.error(f"Unexpected error while generating HeyGen video: {e}")
 
+        # Status / refresh area
+        if st.session_state.heygen_video_id:
+            st.markdown("##### HeyGen Status")
+
+            col_status_btn, col_status_info = st.columns([1, 2])
+            with col_status_btn:
+                refresh_status = st.button(
+                    "Check HeyGen Status",
+                    key="check_heygen_status_button",
+                    use_container_width=True,
+                )
+            with col_status_info:
+                st.caption(
+                    "Click to refresh the status from HeyGen. "
+                    "Processing may take a while depending on load."
+                )
+
+            if refresh_status:
+                try:
+                    status_data = heygen_client.get_video_status(
+                        st.session_state.heygen_video_id
+                    )
                     data = status_data.get("data", status_data)
                     status = data.get("status")
                     video_url = data.get("video_url") or data.get("video_url_caption")
@@ -589,23 +618,13 @@ if package:
                     st.session_state.heygen_video_status = status
                     st.session_state.heygen_video_url = video_url
 
-                    st.success(f"HeyGen video status: {status}")
-                    if status == "completed" and video_url:
-                        st.video(video_url)
-                        st.text_input("Video URL", value=video_url)
-                    else:
-                        st.warning(
-                            "Video did not complete successfully. "
-                            "Check the HeyGen dashboard for details."
-                        )
+                    st.success(f"Latest HeyGen status: {status}")
                 except heygen_client.HeyGenError as e:
-                    st.error(f"HeyGen error: {e}")
+                    st.error(f"HeyGen error while checking status: {e}")
                 except Exception as e:
-                    st.error(f"Unexpected error while generating HeyGen video: {e}")
+                    st.error(f"Unexpected error while checking HeyGen status: {e}")
 
-        # Show last HeyGen result if available
-        if st.session_state.heygen_video_id:
-            st.markdown("##### Last HeyGen Request")
+            # Show last known status / video
             st.write(f"Video ID: `{st.session_state.heygen_video_id}`")
             if st.session_state.heygen_video_status:
                 st.write(f"Status: **{st.session_state.heygen_video_status}**")
