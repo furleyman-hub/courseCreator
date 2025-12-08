@@ -528,7 +528,8 @@ if package:
             )
         with col_hg_info:
             st.caption(
-                "Uses the default HeyGen avatar and voice IDs configured in Streamlit secrets."
+                "For free-plan testing, only a short excerpt (≈3 minutes of speech) "
+                "is sent to HeyGen. Uses default avatar and voice IDs from secrets."
             )
 
         if generate_heygen_clicked:
@@ -544,14 +545,27 @@ if package:
                     "Add HEYGEN_DEFAULT_AVATAR_ID and HEYGEN_DEFAULT_VOICE_ID to st.secrets."
                 )
             else:
-                # Enforce HeyGen input_text limit with a safety margin
-                max_chars = 4800
+                # Start from user-edited text
                 script_to_send = heygen_script_text.strip()
+
+                # 1) Free-plan safety: limit to ~3 minutes (~350 words)
+                max_words = 350
+                words = script_to_send.split()
+                if len(words) > max_words:
+                    script_to_send = " ".join(words[:max_words])
+                    st.warning(
+                        f"Script is longer than free-plan limit. "
+                        f"Only the first {max_words} words were sent to HeyGen "
+                        f"to target a video under ~180 seconds."
+                    )
+
+                # 2) HeyGen input_text limit safety (5000 chars max)
+                max_chars = 4800
                 if len(script_to_send) > max_chars:
                     script_to_send = script_to_send[:max_chars]
                     st.warning(
-                        f"Script is longer than 5000 characters. "
-                        f"Only the first {max_chars} characters were sent to HeyGen."
+                        f"Script text exceeded HeyGen limits. "
+                        f"Only the first {max_chars} characters were sent."
                     )
 
                 try:
