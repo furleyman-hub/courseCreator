@@ -27,6 +27,7 @@ from .markdown_utils import (
 
 from .extract_text import extract_text_from_files
 from .audio import transcribe_audio_files, synthesize_narration_audio
+from .batch_processor import BatchProcessor
 
 
 __all__ = [
@@ -49,4 +50,5 @@ __all__ = [
     "VideoSegment",
     "QuickReferenceGuide",
     "QuickRefStep",
+    "BatchProcessor",
 ]

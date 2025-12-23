@@ -4,15 +4,16 @@ from __future__ import annotations
 import base64
 from typing import List
 
-from openai import OpenAI
-
 try:
-    # If you already have a central client helper, use that
-    from .openai_client import get_client  # type: ignore[attr-defined]
-    _client = get_client()
-except Exception:
-    # Fallback if imported standalone
-    _client = OpenAI()
+    from generator.openai_client import get_client
+except ImportError:
+    # helper if needed, but usually generator is available
+    from openai import OpenAI
+    def get_client():
+        return OpenAI()
+
+# _client is now retrieved lazily
+
 
 
 def _image_to_data_url(file_obj) -> str:
@@ -46,7 +47,8 @@ def extract_text_from_note_images(images: List) -> str:
         label = getattr(img_file, "name", f"Image {idx}")
 
         try:
-            resp = _client.chat.completions.create(
+            client = get_client()
+            resp = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
                     {

@@ -33,8 +33,11 @@ def _read_api_key() -> Optional[str]:
     """
 
     # Streamlit secrets (preferred in Cloud)
-    if "OPENAI_API_KEY" in st.secrets:
-        return str(st.secrets["OPENAI_API_KEY"])
+    try:
+        if "OPENAI_API_KEY" in st.secrets:
+            return str(st.secrets["OPENAI_API_KEY"])
+    except (FileNotFoundError, Exception):
+        pass
 
     # Local environment
     return os.environ.get("OPENAI_API_KEY")

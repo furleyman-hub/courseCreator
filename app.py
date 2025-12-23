@@ -8,6 +8,7 @@ from notes_ocr import extract_text_from_note_images
 
 from generator import (
     ClassOutline,
+    BatchProcessor,
     InstructorGuide,
     QuickReferenceGuide,
     VideoScript,
@@ -78,10 +79,20 @@ st.markdown(
 # Configure HeyGen client
 # -------------------------------------------------------------------
 
-heygen_client.HEYGEN_API_KEY = st.secrets.get("HEYGEN_API_KEY", None)
-
-DEFAULT_HEYGEN_AVATAR_ID = st.secrets.get("HEYGEN_DEFAULT_AVATAR_ID", "")
-DEFAULT_HEYGEN_VOICE_ID = st.secrets.get("HEYGEN_DEFAULT_VOICE_ID", "")
+try:
+    heygen_client.HEYGEN_API_KEY = st.secrets.get("HEYGEN_API_KEY", None)
+    DEFAULT_HEYGEN_AVATAR_ID = st.secrets.get("HEYGEN_DEFAULT_AVATAR_ID", "")
+    DEFAULT_HEYGEN_VOICE_ID = st.secrets.get("HEYGEN_DEFAULT_VOICE_ID", "")
+except FileNotFoundError:
+    # No secrets file found
+    heygen_client.HEYGEN_API_KEY = None
+    DEFAULT_HEYGEN_AVATAR_ID = ""
+    DEFAULT_HEYGEN_VOICE_ID = ""
+except Exception:
+    # Any other streamit secret error
+    heygen_client.HEYGEN_API_KEY = None
+    DEFAULT_HEYGEN_AVATAR_ID = ""
+    DEFAULT_HEYGEN_VOICE_ID = ""
 
 # -------------------------------------------------------------------
 # Render helpers
@@ -269,6 +280,58 @@ def _build_speakable_narration(script: VideoScript) -> str:
 # -------------------------------------------------------------------
 # App layout & state
 # -------------------------------------------------------------------
+
+
+# Mode Selection
+mode = st.sidebar.radio("App Mode", ["Interactive (Single Class)", "Batch Processing (CSV)"])
+
+if mode == "Batch Processing (CSV)":
+    st.title("Batch Class Generation")
+    st.markdown("Upload a CSV file to generate multiple training packages at once.")
+
+    with st.expander("CSV Format Requirements", expanded=False):
+        st.markdown(
+            \"\"\"
+            The CSV must have the following headers:
+            - **#**: Class number
+            - **video_file**: Filename of the source video
+            - **est_duration**: Estimated duration (e.g. "5 mins")
+            - **brief_description**: Content summary used for generation
+            \"\"\"
+        )
+
+    uploaded_csv = st.file_uploader("Upload CSV", type=["csv"])
+
+    if uploaded_csv:
+        if st.button("Process Batch", type="primary"):
+            processor = BatchProcessor()
+            try:
+                rows = processor.parse_csv(uploaded_csv)
+                st.info(f"Loaded {len(rows)} classes from CSV. Starting generation...")
+
+                progress_bar = st.progress(0.0)
+                status_text = st.empty()
+
+                def update_progress(p, text):
+                    progress_bar.progress(p)
+                    status_text.text(text)
+
+                zip_bytes = processor.process_batch(rows, progress_callback=update_progress)
+
+                status_text.text("Batch processing complete!")
+                st.success("All classes generated successfully.")
+
+                st.download_button(
+                    label="Download All Classes (.zip)",
+                    data=zip_bytes,
+                    file_name="batch_classes.zip",
+                    mime="application/zip"
+                )
+
+            except Exception as e:
+                st.error(str(e))
+
+    st.stop()  # Stop here so we don't render the single-class UI
 
 st.title("Training Class Generator")
 st.write(
