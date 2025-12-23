@@ -291,13 +291,13 @@ if mode == "Batch Processing (CSV)":
 
     with st.expander("CSV Format Requirements", expanded=False):
         st.markdown(
-            \"\"\"
+            """
             The CSV must have the following headers:
             - **#**: Class number
             - **video_file**: Filename of the source video
             - **est_duration**: Estimated duration (e.g. "5 mins")
             - **brief_description**: Content summary used for generation
-            \"\"\"
+            """
         )
 
     uploaded_csv = st.file_uploader("Upload CSV", type=["csv"])
