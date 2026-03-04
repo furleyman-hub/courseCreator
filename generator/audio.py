@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import time
 from typing import Dict, List
 
 from streamlit.runtime.uploaded_file_manager import UploadedFile
@@ -111,36 +112,43 @@ def synthesize_narration_audio(
 
         filename = f"segment_{idx}.mp3"
 
-        try:
-            response = client.models.generate_content(
-                model=model,
-                contents=narration,
-                config=types.GenerateContentConfig(
-                    response_modalities=["AUDIO"],
-                    speech_config=types.SpeechConfig(
-                        voice_config=types.VoiceConfig(
-                            prebuilt_voice_config=types.PrebuiltVoiceConfig(
-                                voice_name=voice_name,
-                            )
-                        )
-                    ),
-                ),
-            )
-
-            # Some google-genai SDK versions return base64-encoded bytes rather
-            # than decoded binary; decode defensively and fall back to raw bytes.
-            raw = response.candidates[0].content.parts[0].inline_data.data
+        last_exc: Exception = RuntimeError(f"TTS failed for segment {idx}")
+        for attempt in range(3):
             try:
-                pcm_bytes = base64.b64decode(raw, validate=True)
-            except Exception:
-                pcm_bytes = raw  # already raw PCM bytes
-            audio_payloads[filename] = _pcm_to_mp3(pcm_bytes)
+                response = client.models.generate_content(
+                    model=model,
+                    contents=narration,
+                    config=types.GenerateContentConfig(
+                        response_modalities=["AUDIO"],
+                        speech_config=types.SpeechConfig(
+                            voice_config=types.VoiceConfig(
+                                prebuilt_voice_config=types.PrebuiltVoiceConfig(
+                                    voice_name=voice_name,
+                                )
+                            )
+                        ),
+                    ),
+                )
 
-        except MissingGeminiKeyError:
-            raise
-        except Exception as exc:
+                # Some google-genai SDK versions return base64-encoded bytes rather
+                # than decoded binary; decode defensively and fall back to raw bytes.
+                raw = response.candidates[0].content.parts[0].inline_data.data
+                try:
+                    pcm_bytes = base64.b64decode(raw, validate=True)
+                except Exception:
+                    pcm_bytes = raw  # already raw PCM bytes
+                audio_payloads[filename] = _pcm_to_mp3(pcm_bytes)
+                break  # success
+
+            except MissingGeminiKeyError:
+                raise
+            except Exception as exc:
+                last_exc = exc
+                if attempt < 2:
+                    time.sleep(2 ** attempt)  # 1s, 2s before retries 2 and 3
+        else:
             error_key = f"segment_{idx}_ERROR.txt"
-            error_msg = f"Error generating TTS for segment {idx}: {exc}"
+            error_msg = f"Error generating TTS for segment {idx}: {last_exc}"
             audio_payloads[error_key] = error_msg.encode("utf-8")
 
     return audio_payloads
