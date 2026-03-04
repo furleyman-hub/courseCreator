@@ -2,21 +2,17 @@
 
 from __future__ import annotations
 
-import base64
 import io
-import time
 import zipfile
 from typing import Dict, List
 
 from streamlit.runtime.uploaded_file_manager import UploadedFile
 
-from .gemini_client import (
-    GEMINI_TTS_FLASH,
-    MissingGeminiKeyError,
-    VOICE_DISPLAY_TO_NAME,
-    get_gemini_client,
+from .openai_client import (
+    TTS_MODEL,
+    MissingOpenAIKeyError,
+    get_client,
 )
-from google.genai import types
 
 
 # -------------------------------------------------------------------
@@ -87,88 +83,26 @@ def _parse_docx(uploaded_file: UploadedFile) -> List[str]:
 
 
 # -------------------------------------------------------------------
-# Gemini TTS synthesis helpers
+# OpenAI TTS synthesis helpers
 # -------------------------------------------------------------------
-
-def _pcm_to_mp3(
-    pcm_bytes: bytes,
-    sample_rate: int = 24000,
-    num_channels: int = 1,
-    bit_rate: int = 128,
-) -> bytes:
-    """
-    Encode raw 16-bit little-endian PCM bytes to MP3 via lameenc.
-    Gemini TTS returns Linear16 PCM; this produces a browser-playable MP3.
-    """
-    try:
-        import lameenc  # type: ignore
-    except ImportError as exc:
-        raise ImportError(
-            "lameenc is required for MP3 encoding. Run: pip install lameenc"
-        ) from exc
-
-    encoder = lameenc.Encoder()
-    encoder.set_bit_rate(bit_rate)
-    encoder.set_in_sample_rate(sample_rate)
-    encoder.set_channels(num_channels)
-    encoder.set_quality(2)  # 2 = highest quality
-
-    mp3_data = encoder.encode(pcm_bytes)
-    mp3_data += encoder.flush()
-    return mp3_data
-
 
 def _synthesize_one_chunk(
     client,
     text: str,
-    voice_name: str,
+    voice: str,
     model: str,
     style_prompt: str = "",
 ) -> bytes:
     """
-    Call Gemini TTS for a single text chunk.
-    Returns MP3 bytes.
+    Call OpenAI TTS for a single text chunk.
+    Returns MP3 bytes directly (no PCM conversion needed).
     """
-    # Optional: prepend style instruction
-    if style_prompt.strip():
-        input_text = f"{style_prompt.strip()}\n\n{text}"
-    else:
-        input_text = text
-
-    last_exc: Exception = RuntimeError("TTS synthesis failed")
-    for attempt in range(3):
-        try:
-            response = client.models.generate_content(
-                model=model,
-                contents=input_text,
-                config=types.GenerateContentConfig(
-                    response_modalities=["AUDIO"],
-                    speech_config=types.SpeechConfig(
-                        voice_config=types.VoiceConfig(
-                            prebuilt_voice_config=types.PrebuiltVoiceConfig(
-                                voice_name=voice_name,
-                            )
-                        )
-                    ),
-                ),
-            )
-
-            # The audio data is raw 16-bit PCM (Linear16) at 24 kHz.
-            # Some google-genai SDK versions return base64-encoded bytes rather than
-            # decoded binary; decode defensively and fall back to raw bytes.
-            raw = response.candidates[0].content.parts[0].inline_data.data
-            try:
-                pcm_data = base64.b64decode(raw, validate=True)
-            except Exception:
-                pcm_data = raw  # already raw PCM bytes
-            return _pcm_to_mp3(pcm_data)
-
-        except Exception as exc:
-            last_exc = exc
-            if attempt < 2:
-                time.sleep(2 ** attempt)  # 1s, 2s before retries 2 and 3
-
-    raise last_exc
+    kwargs: dict = dict(model=model, voice=voice, input=text, response_format="mp3")
+    # gpt-4o-mini-tts supports an optional style instructions parameter
+    if style_prompt.strip() and model == TTS_MODEL:
+        kwargs["instructions"] = style_prompt.strip()
+    response = client.audio.speech.create(**kwargs)
+    return response.content
 
 
 # -------------------------------------------------------------------
@@ -178,41 +112,40 @@ def _synthesize_one_chunk(
 def synthesize_chunks(
     chunks: List[str],
     voice_display: str,
-    model: str = GEMINI_TTS_FLASH,
+    model: str = TTS_MODEL,
     style_prompt: str = "",
 ) -> Dict[str, bytes]:
     """
-    Synthesize a list of text chunks to audio using Gemini TTS.
+    Synthesize a list of text chunks to MP3 using OpenAI TTS.
 
     Parameters
     ----------
     chunks : list[str]
         Text segments to convert.
     voice_display : str
-        Display name such as "Zephyr (Bright)". Looked up in VOICE_DISPLAY_TO_NAME.
+        OpenAI voice name (e.g. "nova", "alloy").
     model : str
-        Gemini TTS model name.
+        OpenAI TTS model. gpt-4o-mini-tts supports style instructions;
+        tts-1-hd gives highest audio quality.
     style_prompt : str
-        Optional natural-language style instruction prepended to each chunk.
+        Optional speaking-style instruction (gpt-4o-mini-tts only).
 
     Returns
     -------
     dict[str, bytes]
-        Mapping of filename → WAV bytes (or error .txt bytes on failure).
+        Mapping of filename → MP3 bytes (or error .txt bytes on failure).
     """
-    voice_name = VOICE_DISPLAY_TO_NAME.get(voice_display, "Zephyr")
-
-    client = get_gemini_client()
+    client = get_client()
 
     results: Dict[str, bytes] = {}
     for idx, chunk in enumerate(chunks, start=1):
         filename = f"chunk_{idx:03d}.mp3"
         try:
-            wav_bytes = _synthesize_one_chunk(
-                client, chunk, voice_name, model, style_prompt
+            mp3_bytes = _synthesize_one_chunk(
+                client, chunk, voice_display, model, style_prompt
             )
-            results[filename] = wav_bytes
-        except MissingGeminiKeyError:
+            results[filename] = mp3_bytes
+        except MissingOpenAIKeyError:
             raise
         except Exception as exc:
             error_filename = f"chunk_{idx:03d}_ERROR.txt"

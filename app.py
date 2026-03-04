@@ -26,9 +26,9 @@ from generator import (
     parse_document_to_chunks,
     synthesize_chunks,
     chunks_to_zip,
-    VOICE_DISPLAY_NAMES,
-    GEMINI_TTS_FLASH,
-    GEMINI_TTS_PRO,
+    OPENAI_TTS_VOICES,
+    TTS_MODEL,
+    TTS_MODEL_HD,
 )
 
 import heygen_client
@@ -238,20 +238,20 @@ def _tts_settings_widgets(key_prefix: str) -> tuple[str, str]:
     with col_voice:
         voice = st.selectbox(
             "Voice",
-            VOICE_DISPLAY_NAMES,
-            index=0,
+            OPENAI_TTS_VOICES,
+            index=OPENAI_TTS_VOICES.index("nova"),
             key=f"{key_prefix}_voice",
-            help="Choose from 28 Gemini prebuilt voices. The style label describes the tone.",
+            help="Choose an OpenAI TTS voice.",
         )
     with col_model:
         model_choice = st.radio(
             "TTS Quality",
-            ["Flash (fast)", "Pro (high quality)"],
+            ["Standard (fast, style support)", "HD (highest quality)"],
             index=0,
             key=f"{key_prefix}_model",
-            help="Flash is faster and cheaper; Pro produces higher-quality audio.",
+            help="Standard uses gpt-4o-mini-tts and supports the speaking style field. HD uses tts-1-hd for highest audio quality.",
         )
-    model = GEMINI_TTS_FLASH if model_choice == "Flash (fast)" else GEMINI_TTS_PRO
+    model = TTS_MODEL if model_choice == "Standard (fast, style support)" else TTS_MODEL_HD
     return voice, model
 
 
@@ -803,7 +803,7 @@ if package:
 
         # ── Gemini TTS narration ──────────────────────────────────
         st.markdown("---")
-        st.subheader("Narration Audio (Gemini TTS)")
+        st.subheader("Narration Audio (OpenAI TTS)")
 
         tts_voice_course, tts_model_course = _tts_settings_widgets("course_tts")
 
@@ -816,15 +816,15 @@ if package:
         )
 
         if st.button("Generate Narration Audio", key="generate_tts_button"):
-            with st.spinner("Generating narration audio via Gemini TTS..."):
+            with st.spinner("Generating narration audio via OpenAI TTS..."):
                 try:
-                    from generator.gemini_client import MissingGeminiKeyError
+                    from generator.openai_client import MissingOpenAIKeyError
                     st.session_state.tts_payload = synthesize_narration_audio(
                         package["video_script"],
                         voice_display=tts_voice_course,
                         model=tts_model_course,
                     )
-                except MissingGeminiKeyError as exc:
+                except MissingOpenAIKeyError as exc:
                     st.error(str(exc))
                 except Exception as exc:
                     st.error(f"TTS generation failed: {exc}")

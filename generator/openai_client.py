@@ -19,7 +19,13 @@ class MissingOpenAIKeyError(Exception):
 
 TEXT_MODEL = "gpt-4.1"             # used for outline, guide, script, QRG
 TRANSCRIBE_MODEL = "gpt-4o-transcribe"   # STT
-TTS_MODEL = "gpt-4o-mini-tts"     # TTS voice synthesis
+TTS_MODEL = "gpt-4o-mini-tts"     # TTS — supports style instructions
+TTS_MODEL_HD = "tts-1-hd"         # TTS — highest audio quality, no style instructions
+
+# Available OpenAI TTS voices
+OPENAI_TTS_VOICES: list[str] = [
+    "alloy", "ash", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer",
+]
 
 
 # -------------------------------------------------------------------
@@ -65,5 +71,7 @@ __all__ = [
     "TEXT_MODEL",
     "TRANSCRIBE_MODEL",
     "TTS_MODEL",
+    "TTS_MODEL_HD",
+    "OPENAI_TTS_VOICES",
     "get_client",
 ]
