@@ -396,11 +396,14 @@ if mode == "TTS: Script to Audio":
                         model=tts_model,
                         style_prompt=style_prompt,
                     )
-                    # synthesize_chunks returns {filename: bytes}; grab the first (and only) entry
-                    audio_bytes = next(iter(chunk_result.values()))
-                    results[filename] = audio_bytes
-                    if filename.endswith("_ERROR.txt"):
-                        errors.append(filename)
+                    # synthesize_chunks returns {filename: bytes}; check if synthesis failed
+                    result_key, audio_bytes = next(iter(chunk_result.items()))
+                    if result_key.endswith("_ERROR.txt"):
+                        error_key = f"chunk_{i:03d}_ERROR.txt"
+                        results[error_key] = audio_bytes
+                        errors.append(error_key)
+                    else:
+                        results[filename] = audio_bytes
                 except Exception as exc:
                     error_key = f"chunk_{i:03d}_ERROR.txt"
                     results[error_key] = (
