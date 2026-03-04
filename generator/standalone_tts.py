@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import io
 import zipfile
 from typing import Dict, List
@@ -148,8 +149,14 @@ def _synthesize_one_chunk(
         ),
     )
 
-    # The audio data is raw 16-bit PCM (Linear16) at 24 kHz
-    pcm_data = response.candidates[0].content.parts[0].inline_data.data
+    # The audio data is raw 16-bit PCM (Linear16) at 24 kHz.
+    # Some google-genai SDK versions return base64-encoded bytes rather than
+    # decoded binary; decode defensively and fall back to raw bytes.
+    raw = response.candidates[0].content.parts[0].inline_data.data
+    try:
+        pcm_data = base64.b64decode(raw, validate=True)
+    except Exception:
+        pcm_data = raw  # already raw PCM bytes
     return _pcm_to_mp3(pcm_data)
 
 

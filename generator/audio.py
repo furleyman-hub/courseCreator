@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 from typing import Dict, List
 
 from streamlit.runtime.uploaded_file_manager import UploadedFile
@@ -126,7 +127,13 @@ def synthesize_narration_audio(
                 ),
             )
 
-            pcm_bytes = response.candidates[0].content.parts[0].inline_data.data
+            # Some google-genai SDK versions return base64-encoded bytes rather
+            # than decoded binary; decode defensively and fall back to raw bytes.
+            raw = response.candidates[0].content.parts[0].inline_data.data
+            try:
+                pcm_bytes = base64.b64decode(raw, validate=True)
+            except Exception:
+                pcm_bytes = raw  # already raw PCM bytes
             audio_payloads[filename] = _pcm_to_mp3(pcm_bytes)
 
         except MissingGeminiKeyError:
