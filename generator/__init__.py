@@ -28,6 +28,8 @@ from .markdown_utils import (
 from .extract_text import extract_text_from_files
 from .audio import transcribe_audio_files, synthesize_narration_audio
 from .batch_processor import BatchProcessor
+from .standalone_tts import parse_document_to_chunks, synthesize_chunks, chunks_to_zip
+from .gemini_client import VOICE_DISPLAY_NAMES, VOICE_DISPLAY_TO_NAME, GEMINI_TTS_FLASH, GEMINI_TTS_PRO
 
 
 __all__ = [
@@ -51,4 +53,11 @@ __all__ = [
     "QuickReferenceGuide",
     "QuickRefStep",
     "BatchProcessor",
+    "parse_document_to_chunks",
+    "synthesize_chunks",
+    "chunks_to_zip",
+    "VOICE_DISPLAY_NAMES",
+    "VOICE_DISPLAY_TO_NAME",
+    "GEMINI_TTS_FLASH",
+    "GEMINI_TTS_PRO",
 ]

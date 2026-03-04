@@ -23,6 +23,12 @@ from generator import (
     synthesize_narration_audio,
     transcribe_audio_files,
     video_script_to_markdown,
+    parse_document_to_chunks,
+    synthesize_chunks,
+    chunks_to_zip,
+    VOICE_DISPLAY_NAMES,
+    GEMINI_TTS_FLASH,
+    GEMINI_TTS_PRO,
 )
 
 import heygen_client
@@ -33,40 +39,29 @@ import heygen_client
 
 st.set_page_config(page_title="Training Class Generator", layout="wide")
 
-# Narrow, compact layout
 st.markdown(
     """
 <style>
-    /* Make main content narrower and centered */
     .block-container {
         max-width: 900px !important;
         padding-top: 1.2rem !important;
         padding-bottom: 1rem !important;
     }
-
-    /* Tighten vertical spacing between widgets */
     div.stMarkdown, div.stTextInput, div.stSelectbox, div.stFileUploader,
     div[data-testid="stHorizontalBlock"] {
         margin-bottom: 0.3rem !important;
     }
-
-    /* Section headers smaller and tighter */
     h2, h3 {
         margin-top: 0.6rem !important;
         margin-bottom: 0.3rem !important;
     }
-
     h2 {
         font-size: 1.25rem !important;
         font-weight: 600 !important;
     }
-
-    /* Dividers closer together */
     hr {
         margin: 0.6rem 0 !important;
     }
-
-    /* File uploader padding a bit smaller */
     section[data-testid="stFileUploadDropzone"] {
         padding: 0.35rem !important;
     }
@@ -84,12 +79,10 @@ try:
     DEFAULT_HEYGEN_AVATAR_ID = st.secrets.get("HEYGEN_DEFAULT_AVATAR_ID", "")
     DEFAULT_HEYGEN_VOICE_ID = st.secrets.get("HEYGEN_DEFAULT_VOICE_ID", "")
 except FileNotFoundError:
-    # No secrets file found
     heygen_client.HEYGEN_API_KEY = None
     DEFAULT_HEYGEN_AVATAR_ID = ""
     DEFAULT_HEYGEN_VOICE_ID = ""
 except Exception:
-    # Any other streamit secret error
     heygen_client.HEYGEN_API_KEY = None
     DEFAULT_HEYGEN_AVATAR_ID = ""
     DEFAULT_HEYGEN_VOICE_ID = ""
@@ -118,33 +111,22 @@ def _render_outline(outline: ClassOutline) -> None:
 
 
 def _render_instructor_guide(guide: InstructorGuide) -> None:
-    # Training plan and goals
     if guide.training_plan_and_goals:
         st.subheader("Training plan and goals")
         st.write(guide.training_plan_and_goals)
-
-    # Target audience
     if guide.target_audience:
         st.subheader("Target audience")
         st.write(guide.target_audience)
-
-    # Prerequisites
     if guide.prerequisites:
         st.subheader("Prerequisites")
         st.write(guide.prerequisites)
-
-    # Office 365 status
     if guide.office365_status:
         st.subheader("Office 365 status")
         st.write(guide.office365_status)
-
-    # Learning objectives
     if guide.learning_objectives:
         st.subheader("Learning objectives")
         st.markdown("By the end of the session, participants will be able to:")
         st.markdown("\n".join(f"1. {obj}" for obj in guide.learning_objectives))
-
-    # Preparation and course setup
     if (
         guide.required_materials_and_equipment
         or guide.instructor_setup
@@ -152,72 +134,50 @@ def _render_instructor_guide(guide: InstructorGuide) -> None:
         or guide.handouts
     ):
         st.subheader("Preparation and course setup")
-
         if guide.required_materials_and_equipment:
             st.markdown("**Required materials and equipment**")
             st.markdown(
                 "\n".join(f"- {item}" for item in guide.required_materials_and_equipment)
             )
-
         if guide.instructor_setup:
             st.markdown("**Setup – instructor**")
             st.markdown("\n".join(f"- {item}" for item in guide.instructor_setup))
-
         if guide.participant_setup:
             st.markdown("**Setup – participants**")
             st.markdown("\n".join(f"- {item}" for item in guide.participant_setup))
-
         if guide.handouts:
             st.markdown("**Handouts (optional)**")
             st.markdown("\n".join(f"- {item}" for item in guide.handouts))
-
-    # Type of class
     if guide.class_type:
         st.subheader("Type of class")
         st.write(guide.class_type)
-
-    # Class checklist
     if (
         guide.class_checklist_before
         or guide.class_checklist_start
         or guide.class_checklist_after
     ):
         st.subheader("Class checklist")
-
         if guide.class_checklist_before:
             st.markdown("**Before class:**")
             st.markdown("\n".join(f"- {item}" for item in guide.class_checklist_before))
-
         if guide.class_checklist_start:
             st.markdown("**Start of class:**")
             st.markdown("\n".join(f"- {item}" for item in guide.class_checklist_start))
-
         if guide.class_checklist_after:
             st.markdown("**After class:**")
             st.markdown("\n".join(f"- {item}" for item in guide.class_checklist_after))
-
-    # Instructional framework topics
     if guide.sections:
         st.subheader("Instructional framework")
         for section in guide.sections:
             st.markdown(f"### Topic: {section.title}")
             if section.estimated_time_minutes:
-                st.markdown(
-                    f"**Estimated Time:** {section.estimated_time_minutes} minutes"
-                )
-
+                st.markdown(f"**Estimated Time:** {section.estimated_time_minutes} minutes")
             if section.learning_objectives:
                 st.markdown("**Learning Objectives**")
-                st.markdown(
-                    "\n".join(f"- {obj}" for obj in section.learning_objectives)
-                )
-
+                st.markdown("\n".join(f"- {obj}" for obj in section.learning_objectives))
             if section.instructional_steps:
                 st.markdown("**Instructional Steps:**")
-                st.markdown(
-                    "\n".join(f"- {step}" for step in section.instructional_steps)
-                )
-
+                st.markdown("\n".join(f"- {step}" for step in section.instructional_steps))
             if section.key_points:
                 st.markdown("**Key Points:**")
                 st.markdown("\n".join(f"- {kp}" for kp in section.key_points))
@@ -227,7 +187,6 @@ def _render_video_script(script: VideoScript) -> None:
     if not script.segments:
         st.info("No segments in the video script.")
         return
-
     for idx, segment in enumerate(script.segments, start=1):
         st.markdown(f"### Segment {idx}: {segment.title}")
         if segment.narration:
@@ -244,7 +203,6 @@ def _render_qrg(qrg: QuickReferenceGuide) -> None:
     if not qrg.steps:
         st.info("No steps in the quick reference guide.")
         return
-
     for step in qrg.steps:
         title = step.title or f"Step {step.step_number}"
         st.markdown(f"### Step {step.step_number}: {title}")
@@ -252,22 +210,15 @@ def _render_qrg(qrg: QuickReferenceGuide) -> None:
             st.markdown(step.action)
         if step.notes:
             notes_text = step.notes.strip()
-            if notes_text.upper().startswith("NOTE:") or notes_text.upper().startswith(
-                "TIP:"
-            ):
+            if notes_text.upper().startswith("NOTE:") or notes_text.upper().startswith("TIP:"):
                 st.markdown(f"> {notes_text}")
             else:
                 st.markdown(f"> **NOTE:** {notes_text}")
 
 
 def _build_speakable_narration(script: VideoScript) -> str:
-    """
-    Build a plain narration-only script from the VideoScript,
-    omitting headings and screen directions.
-    """
     if not script or not getattr(script, "segments", None):
         return ""
-
     chunks: list[str] = []
     for segment in script.segments:
         if segment.narration:
@@ -278,12 +229,48 @@ def _build_speakable_narration(script: VideoScript) -> str:
 
 
 # -------------------------------------------------------------------
+# Shared TTS settings widget (reused in both modes)
+# -------------------------------------------------------------------
+
+def _tts_settings_widgets(key_prefix: str) -> tuple[str, str]:
+    """Render voice + model selectors; return (voice_display, model)."""
+    col_voice, col_model = st.columns([2, 1])
+    with col_voice:
+        voice = st.selectbox(
+            "Voice",
+            VOICE_DISPLAY_NAMES,
+            index=0,
+            key=f"{key_prefix}_voice",
+            help="Choose from 28 Gemini prebuilt voices. The style label describes the tone.",
+        )
+    with col_model:
+        model_choice = st.radio(
+            "TTS Quality",
+            ["Flash (fast)", "Pro (high quality)"],
+            index=0,
+            key=f"{key_prefix}_model",
+            help="Flash is faster and cheaper; Pro produces higher-quality audio.",
+        )
+    model = GEMINI_TTS_FLASH if model_choice == "Flash (fast)" else GEMINI_TTS_PRO
+    return voice, model
+
+
+# -------------------------------------------------------------------
 # App layout & state
 # -------------------------------------------------------------------
 
+mode = st.sidebar.radio(
+    "App Mode",
+    [
+        "Interactive (Single Class)",
+        "Batch Processing (CSV)",
+        "TTS: Script to Audio",
+    ],
+)
 
-# Mode Selection
-mode = st.sidebar.radio("App Mode", ["Interactive (Single Class)", "Batch Processing (CSV)"])
+# ===================================================================
+# MODE: Batch Processing
+# ===================================================================
 
 if mode == "Batch Processing (CSV)":
     st.title("Batch Class Generation")
@@ -295,7 +282,7 @@ if mode == "Batch Processing (CSV)":
             The CSV must have the following headers:
             - **#**: Class number
             - **video_file**: Filename of the source video
-            - **est_duration**: Estimated duration (e.g. "5 mins")
+            - **est_duration**: Estimated duration (e.g. \"5 mins\")
             - **brief_description**: Content summary used for generation
             """
         )
@@ -325,13 +312,157 @@ if mode == "Batch Processing (CSV)":
                     label="Download All Classes (.zip)",
                     data=zip_bytes,
                     file_name="batch_classes.zip",
-                    mime="application/zip"
+                    mime="application/zip",
                 )
 
             except Exception as e:
                 st.error(str(e))
 
-    st.stop()  # Stop here so we don't render the single-class UI
+    st.stop()
+
+# ===================================================================
+# MODE: TTS – Script to Audio
+# ===================================================================
+
+if mode == "TTS: Script to Audio":
+    st.title("TTS: Script to Audio")
+    st.write(
+        "Upload a script file (.txt, .md, or .docx). "
+        "The app will split it by blank lines and generate a separate audio file for each section."
+    )
+
+    # ── File upload ──────────────────────────────────────────────────
+    script_file = st.file_uploader(
+        "Upload script file",
+        type=["txt", "md", "docx"],
+        key="tts_script_upload",
+    )
+
+    st.markdown("### TTS Settings")
+
+    # ── Voice + model ────────────────────────────────────────────────
+    tts_voice, tts_model = _tts_settings_widgets("standalone_tts")
+
+    # ── Optional style prompt ────────────────────────────────────────
+    style_prompt = st.text_input(
+        "Speaking style (optional)",
+        value="",
+        key="standalone_tts_style",
+        placeholder='e.g. "Speak in a calm, professional tone at a moderate pace"',
+        help=(
+            "A natural-language instruction prepended to each chunk before synthesis. "
+            "Leave blank for the voice's default style."
+        ),
+    )
+
+    st.divider()
+
+    # ── Convert button ───────────────────────────────────────────────
+    convert_clicked = st.button(
+        "Convert to Audio",
+        type="primary",
+        key="standalone_tts_convert",
+        use_container_width=True,
+        disabled=script_file is None,
+    )
+
+    if "standalone_tts_results" not in st.session_state:
+        st.session_state.standalone_tts_results = None
+        st.session_state.standalone_tts_chunks = []
+
+    if convert_clicked and script_file is not None:
+        with st.spinner("Parsing document…"):
+            try:
+                chunks = parse_document_to_chunks(script_file)
+            except Exception as exc:
+                st.error(f"Failed to parse document: {exc}")
+                chunks = []
+
+        if not chunks:
+            st.warning("No text chunks found in the document. Make sure paragraphs are separated by blank lines.")
+        else:
+            st.info(f"Found **{len(chunks)}** text chunk(s). Synthesizing audio…")
+            progress = st.progress(0.0)
+            results: dict[str, bytes] = {}
+            errors = []
+
+            for i, chunk in enumerate(chunks, start=1):
+                progress.progress(i / len(chunks), text=f"Synthesizing chunk {i} of {len(chunks)}…")
+                filename = f"chunk_{i:03d}.wav"
+                try:
+                    chunk_result = synthesize_chunks(
+                        [chunk],
+                        voice_display=tts_voice,
+                        model=tts_model,
+                        style_prompt=style_prompt,
+                    )
+                    # synthesize_chunks returns {filename: bytes}; grab the first (and only) entry
+                    audio_bytes = next(iter(chunk_result.values()))
+                    results[filename] = audio_bytes
+                    if filename.endswith("_ERROR.txt"):
+                        errors.append(filename)
+                except Exception as exc:
+                    error_key = f"chunk_{i:03d}_ERROR.txt"
+                    results[error_key] = (
+                        f"Error synthesizing chunk {i}:\n{exc}\n\nText:\n{chunk}"
+                    ).encode("utf-8")
+                    errors.append(error_key)
+
+            progress.empty()
+            st.session_state.standalone_tts_results = results
+            st.session_state.standalone_tts_chunks = chunks
+
+            if errors:
+                st.warning(f"{len(errors)} chunk(s) failed to synthesize. See error files below.")
+            else:
+                st.success(f"All {len(results)} audio files generated!")
+
+    # ── Display results ──────────────────────────────────────────────
+    if st.session_state.standalone_tts_results:
+        results = st.session_state.standalone_tts_results
+        chunks_text = st.session_state.standalone_tts_chunks
+
+        st.markdown("### Audio Files")
+
+        wav_files = {k: v for k, v in results.items() if k.endswith(".wav")}
+        err_files = {k: v for k, v in results.items() if not k.endswith(".wav")}
+
+        for idx, (filename, audio_bytes) in enumerate(wav_files.items(), start=1):
+            chunk_num = idx - 1
+            chunk_preview = (
+                chunks_text[chunk_num][:120] + "…"
+                if chunk_num < len(chunks_text) and len(chunks_text[chunk_num]) > 120
+                else (chunks_text[chunk_num] if chunk_num < len(chunks_text) else "")
+            )
+            with st.expander(f"**{filename}** — {chunk_preview}", expanded=idx <= 5):
+                st.audio(audio_bytes, format="audio/wav")
+                st.download_button(
+                    f"⬇ Download {filename}",
+                    audio_bytes,
+                    file_name=filename,
+                    key=f"standalone_dl_{filename}",
+                )
+
+        if err_files:
+            st.markdown("#### Errors")
+            for fname, err_bytes in err_files.items():
+                st.error(err_bytes.decode("utf-8", errors="replace"))
+
+        if wav_files:
+            zip_bytes = chunks_to_zip(wav_files)
+            st.download_button(
+                "⬇ Download All as ZIP",
+                zip_bytes,
+                file_name="tts_audio.zip",
+                mime="application/zip",
+                key="standalone_tts_zip",
+            )
+
+    st.stop()
+
+# ===================================================================
+# MODE: Interactive (Single Class)
+# ===================================================================
 
 st.title("Training Class Generator")
 st.write(
@@ -339,7 +470,7 @@ st.write(
     "class outline, instructor guide, video script, and quick reference guide."
 )
 
-# Initialize session state containers
+# Initialize session state
 st.session_state.setdefault("generated_package", None)
 st.session_state.setdefault("combined_text", "")
 st.session_state.setdefault("tts_payload", None)
@@ -354,13 +485,11 @@ st.session_state.setdefault("heygen_video_url", None)
 
 st.markdown("### 1. Course setup and sources")
 
-# Row 1: Course details (left) + training docs (right)
 col_course, col_docs = st.columns([1.1, 1.9])
 
 with col_course:
     st.subheader("Course details")
     course_title = st.text_input("Course Title", value="", key="course_title_input")
-
     class_type = st.selectbox(
         "Class Type",
         ["Full Class", "Short Video", "Quick Reference Only"],
@@ -382,7 +511,6 @@ with col_docs:
 
 st.divider()
 
-# Row 2: Handwritten notes (left) + audio + generate (right)
 col_notes, col_audio = st.columns([1.8, 1.2])
 
 with col_notes:
@@ -391,23 +519,19 @@ with col_notes:
         "Upload photos or screenshots of handwritten notes. The app will read them, "
         "let you edit the text, and include it with the other sources."
     )
-
     note_images = st.file_uploader(
         "Note images (JPG, PNG, HEIC, WEBP)",
         type=["jpg", "jpeg", "png", "heic", "webp"],
         accept_multiple_files=True,
         key="handwritten_images",
     )
-
     notes_btn_col, notes_clear_col = st.columns(2)
-
     with notes_btn_col:
         if note_images and st.button("Extract text from notes", use_container_width=True):
             with st.spinner("Reading notes from images..."):
                 notes_text = extract_text_from_note_images(note_images)
             st.session_state.handwritten_notes_text = notes_text or ""
             st.success("Handwritten notes extracted. Review below.")
-
     with notes_clear_col:
         if st.session_state.handwritten_notes_text and st.button(
             "Clear notes", use_container_width=True
@@ -438,8 +562,7 @@ with col_audio:
         accept_multiple_files=True,
         key="audio_uploads",
     )
-
-    st.markdown("")  # small spacer
+    st.markdown("")
     st.subheader("Generate")
     st.caption(
         "Use whatever sources you have provided: documents, audio transcripts, and handwritten notes."
@@ -459,35 +582,26 @@ if generate_clicked:
     if not course_title:
         st.error("Please enter a course title.")
     else:
-        # Treat extracted handwritten notes as a valid source too
         notes_text_present = bool(
             (st.session_state.get("handwritten_notes_text", "") or "").strip()
         )
-
         if not document_uploads and not audio_uploads and not notes_text_present:
             st.error(
                 "Please upload at least one document, audio file, or extract handwritten notes."
             )
         else:
             with st.spinner("Generating training package..."):
-                # Extract text from documents
                 document_text = extract_text_from_files(document_uploads)
-
-                # Transcribe audio
                 transcript_text = transcribe_audio_files(audio_uploads)
 
-                # Combine text and transcript
                 combined_text_parts = []
                 if document_text:
                     combined_text_parts.append(document_text)
                 if transcript_text:
-                    combined_text_parts.append(
-                        "[Audio Transcript]\n" + transcript_text
-                    )
+                    combined_text_parts.append("[Audio Transcript]\n" + transcript_text)
 
                 full_text = "\n\n".join(combined_text_parts).strip()
 
-                # Append handwritten notes if present
                 notes_text = (
                     st.session_state.get("handwritten_notes_text", "") or ""
                 ).strip()
@@ -504,26 +618,17 @@ if generate_clicked:
                             + notes_text
                         )
 
-                # If everything failed (no docs, no audio, no notes), fall back to a simple message
                 if not full_text:
                     full_text = (
                         "No usable source text was extracted. "
                         "Create a generic but reasonable training package based only on the course title and class type."
                     )
 
-                # Call generators
                 outline = generate_class_outline(full_text, course_title, class_type)
-                instructor_guide = generate_instructor_guide(
-                    full_text, course_title, class_type
-                )
-                video_script = generate_video_script(
-                    full_text, course_title, class_type
-                )
-                quick_reference = generate_quick_reference(
-                    full_text, course_title, class_type
-                )
+                instructor_guide = generate_instructor_guide(full_text, course_title, class_type)
+                video_script = generate_video_script(full_text, course_title, class_type)
+                quick_reference = generate_quick_reference(full_text, course_title, class_type)
 
-                # Store in session_state
                 st.session_state.generated_package = {
                     "outline": outline,
                     "instructor_guide": instructor_guide,
@@ -532,8 +637,6 @@ if generate_clicked:
                 }
                 st.session_state.combined_text = full_text
                 st.session_state.tts_payload = None
-
-                # Reset HeyGen state on new generation
                 st.session_state.heygen_video_id = None
                 st.session_state.heygen_video_status = None
                 st.session_state.heygen_video_url = None
@@ -549,19 +652,14 @@ package = st.session_state.get("generated_package")
 if package:
     tabs = st.tabs(["Outline", "Instructor Guide", "Video Script", "Quick Reference"])
 
-    # Outline tab
     with tabs[0]:
         st.header("Class Outline")
         _render_outline(package["outline"])
         outline_md = outline_to_markdown(package["outline"])
         st.download_button(
-            "Download Outline (.md)",
-            outline_md,
-            file_name="class_outline.md",
-            key="download_outline",
+            "Download Outline (.md)", outline_md, file_name="class_outline.md", key="download_outline"
         )
 
-    # Instructor Guide tab
     with tabs[1]:
         st.header("Instructor Guide")
         _render_instructor_guide(package["instructor_guide"])
@@ -573,7 +671,6 @@ if package:
             key="download_instructor_guide",
         )
 
-    # Video Script tab
     with tabs[2]:
         st.header("Video Script")
         _render_video_script(package["video_script"])
@@ -585,19 +682,16 @@ if package:
             key="download_video_script",
         )
 
-        # ---------------- HeyGen integration ----------------
+        # ── HeyGen integration (unchanged) ────────────────────────
         st.markdown("---")
         st.subheader("HeyGen Avatar Video")
 
-        # Build narration-only default text for HeyGen (no headings/screen directions)
         narration_default = _build_speakable_narration(package["video_script"])
-
         heygen_script_text = st.text_area(
             "Script to send to HeyGen (narration only by default – edit as needed)",
             value=narration_default,
             height=250,
         )
-
         bg_color = st.text_input("Background color (hex)", "#FFFFFF")
 
         col_hg_btn, col_hg_info = st.columns([1, 2])
@@ -626,10 +720,7 @@ if package:
                     "Add HEYGEN_DEFAULT_AVATAR_ID and HEYGEN_DEFAULT_VOICE_ID to st.secrets."
                 )
             else:
-                # Start from user-edited text
                 script_to_send = heygen_script_text.strip()
-
-                # 1) Free-plan safety: limit to ~3 minutes (~350 words)
                 max_words = 350
                 words = script_to_send.split()
                 if len(words) > max_words:
@@ -639,8 +730,6 @@ if package:
                         f"Only the first {max_words} words were sent to HeyGen "
                         f"to target a video under ~180 seconds."
                     )
-
-                # 2) HeyGen input_text limit safety (5000 chars max)
                 max_chars = 4800
                 if len(script_to_send) > max_chars:
                     script_to_send = script_to_send[:max_chars]
@@ -648,7 +737,6 @@ if package:
                         f"Script text exceeded HeyGen limits. "
                         f"Only the first {max_chars} characters were sent."
                     )
-
                 try:
                     with st.spinner("Submitting script to HeyGen..."):
                         video_id = heygen_client.create_avatar_video(
@@ -661,7 +749,6 @@ if package:
                         st.session_state.heygen_video_id = video_id
                         st.session_state.heygen_video_status = "submitted"
                         st.session_state.heygen_video_url = None
-
                     st.success(
                         f"HeyGen request submitted. Video ID: {st.session_state.heygen_video_id}"
                     )
@@ -670,10 +757,8 @@ if package:
                 except Exception as e:
                     st.error(f"Unexpected error while generating HeyGen video: {e}")
 
-        # Status / refresh area
         if st.session_state.heygen_video_id:
             st.markdown("##### HeyGen Status")
-
             col_status_btn, col_status_info = st.columns([1, 2])
             with col_status_btn:
                 refresh_status = st.button(
@@ -686,7 +771,6 @@ if package:
                     "Click to refresh the status from HeyGen. "
                     "Processing may take a while depending on load."
                 )
-
             if refresh_status:
                 try:
                     status_data = heygen_client.get_video_status(
@@ -695,17 +779,14 @@ if package:
                     data = status_data.get("data", status_data)
                     status = data.get("status")
                     video_url = data.get("video_url") or data.get("video_url_caption")
-
                     st.session_state.heygen_video_status = status
                     st.session_state.heygen_video_url = video_url
-
                     st.success(f"Latest HeyGen status: {status}")
                 except heygen_client.HeyGenError as e:
                     st.error(f"HeyGen error while checking status: {e}")
                 except Exception as e:
                     st.error(f"Unexpected error while checking HeyGen status: {e}")
 
-            # Show last known status / video
             st.write(f"Video ID: `{st.session_state.heygen_video_id}`")
             if st.session_state.heygen_video_status:
                 st.write(f"Status: **{st.session_state.heygen_video_status}**")
@@ -717,29 +798,65 @@ if package:
                     key="heygen_video_url_display",
                 )
 
+        # ── Gemini TTS narration ──────────────────────────────────
         st.markdown("---")
+        st.subheader("Narration Audio (Gemini TTS)")
 
-        # ---------------- Existing TTS integration ----------------
-        if st.button("Generate Narration Audio (TTS)", key="generate_tts_button"):
-            with st.spinner("Generating narration audio..."):
-                st.session_state.tts_payload = synthesize_narration_audio(
-                    package["video_script"]
-                )
+        tts_voice_course, tts_model_course = _tts_settings_widgets("course_tts")
 
-        # If TTS exists, show preview players and download buttons
+        style_prompt_course = st.text_input(
+            "Speaking style (optional)",
+            value="",
+            key="course_tts_style",
+            placeholder='e.g. "Speak slowly and clearly with a warm, encouraging tone"',
+            help="A natural-language style instruction prepended to each segment's narration.",
+        )
+
+        if st.button("Generate Narration Audio", key="generate_tts_button"):
+            with st.spinner("Generating narration audio via Gemini TTS..."):
+                try:
+                    from generator.gemini_client import MissingGeminiKeyError
+                    st.session_state.tts_payload = synthesize_narration_audio(
+                        package["video_script"],
+                        voice_display=tts_voice_course,
+                        model=tts_model_course,
+                    )
+                except MissingGeminiKeyError as exc:
+                    st.error(str(exc))
+                except Exception as exc:
+                    st.error(f"TTS generation failed: {exc}")
+
         if st.session_state.tts_payload:
-            st.info("Preview and download narration segments below.")
-            for filename, payload in st.session_state.tts_payload.items():
-                st.markdown(f"**{filename}**")
-                st.audio(payload, format="audio/wav")
-                st.download_button(
-                    f"Download {filename}",
-                    payload,
-                    file_name=filename,
-                    key=f"download_tts_{filename}",
-                )
+            wav_items = {
+                k: v for k, v in st.session_state.tts_payload.items() if k.endswith(".wav")
+            }
+            err_items = {
+                k: v for k, v in st.session_state.tts_payload.items() if not k.endswith(".wav")
+            }
+            if wav_items:
+                st.info("Preview and download narration segments below.")
+                for filename, payload in wav_items.items():
+                    st.markdown(f"**{filename}**")
+                    st.audio(payload, format="audio/wav")
+                    st.download_button(
+                        f"Download {filename}",
+                        payload,
+                        file_name=filename,
+                        key=f"download_tts_{filename}",
+                    )
+                if len(wav_items) > 1:
+                    zip_bytes = chunks_to_zip(wav_items)
+                    st.download_button(
+                        "⬇ Download All Segments as ZIP",
+                        zip_bytes,
+                        file_name="narration_audio.zip",
+                        mime="application/zip",
+                        key="course_tts_zip",
+                    )
+            if err_items:
+                for fname, err_bytes in err_items.items():
+                    st.error(err_bytes.decode("utf-8", errors="replace"))
 
-    # Quick Reference tab
     with tabs[3]:
         st.header("Quick Reference Guide")
         _render_qrg(package["quick_reference"])
@@ -751,7 +868,6 @@ if package:
             key="download_qrg",
         )
 
-    # Combined source text (for debugging and transparency)
     with st.expander("Show combined source text used for generation"):
         st.write(st.session_state.combined_text or "No source text available.")
 else:
