@@ -12,8 +12,9 @@ from .gemini_client import (
     GEMINI_TTS_FLASH,
     MissingGeminiKeyError,
     VOICE_DISPLAY_TO_NAME,
-    get_genai,
+    get_gemini_client,
 )
+from google.genai import types
 
 
 # -------------------------------------------------------------------
@@ -117,7 +118,7 @@ def _pcm_to_mp3(
 
 
 def _synthesize_one_chunk(
-    genai,
+    client,
     text: str,
     voice_name: str,
     model: str,
@@ -125,7 +126,7 @@ def _synthesize_one_chunk(
 ) -> bytes:
     """
     Call Gemini TTS for a single text chunk.
-    Returns WAV bytes.
+    Returns MP3 bytes.
     """
     # Optional: prepend style instruction
     if style_prompt.strip():
@@ -133,14 +134,14 @@ def _synthesize_one_chunk(
     else:
         input_text = text
 
-    response = genai.models.generate_content(
+    response = client.models.generate_content(
         model=model,
         contents=input_text,
-        config=genai.types.GenerateContentConfig(
+        config=types.GenerateContentConfig(
             response_modalities=["AUDIO"],
-            speech_config=genai.types.SpeechConfig(
-                voice_config=genai.types.VoiceConfig(
-                    prebuilt_voice_config=genai.types.PrebuiltVoiceConfig(
+            speech_config=types.SpeechConfig(
+                voice_config=types.VoiceConfig(
+                    prebuilt_voice_config=types.PrebuiltVoiceConfig(
                         voice_name=voice_name,
                     )
                 )
@@ -184,14 +185,14 @@ def synthesize_chunks(
     """
     voice_name = VOICE_DISPLAY_TO_NAME.get(voice_display, "Zephyr")
 
-    genai = get_genai()
+    client = get_gemini_client()
 
     results: Dict[str, bytes] = {}
     for idx, chunk in enumerate(chunks, start=1):
         filename = f"chunk_{idx:03d}.mp3"
         try:
             wav_bytes = _synthesize_one_chunk(
-                genai, chunk, voice_name, model, style_prompt
+                client, chunk, voice_name, model, style_prompt
             )
             results[filename] = wav_bytes
         except MissingGeminiKeyError:

@@ -10,8 +10,9 @@ from .gemini_client import (
     GEMINI_TTS_FLASH,
     MissingGeminiKeyError,
     VOICE_DISPLAY_TO_NAME,
-    get_genai,
+    get_gemini_client,
 )
+from google.genai import types
 
 
 # -------------------------------------------------------------------
@@ -100,7 +101,7 @@ def synthesize_narration_audio(
     """
     voice_name = VOICE_DISPLAY_TO_NAME.get(voice_display, "Zephyr")
 
-    genai = get_genai()
+    client = get_gemini_client()
     audio_payloads: Dict[str, bytes] = {}
 
     for idx, segment in enumerate(video_script.segments, start=1):
@@ -111,14 +112,14 @@ def synthesize_narration_audio(
         filename = f"segment_{idx}.mp3"
 
         try:
-            response = genai.models.generate_content(
+            response = client.models.generate_content(
                 model=model,
                 contents=narration,
-                config=genai.types.GenerateContentConfig(
+                config=types.GenerateContentConfig(
                     response_modalities=["AUDIO"],
-                    speech_config=genai.types.SpeechConfig(
-                        voice_config=genai.types.VoiceConfig(
-                            prebuilt_voice_config=genai.types.PrebuiltVoiceConfig(
+                    speech_config=types.SpeechConfig(
+                        voice_config=types.VoiceConfig(
+                            prebuilt_voice_config=types.PrebuiltVoiceConfig(
                                 voice_name=voice_name,
                             )
                         )

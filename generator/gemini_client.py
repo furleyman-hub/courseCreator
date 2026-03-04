@@ -84,17 +84,17 @@ def _read_api_key() -> Optional[str]:
 
 
 # -------------------------------------------------------------------
-# Configured genai module (lazy-loaded so import errors surface clearly)
+# Configured genai client (lazy-loaded so import errors surface clearly)
 # -------------------------------------------------------------------
 
-def get_genai():
-    """Import and configure google.generativeai, raising clearly if unavailable."""
+def get_gemini_client():
+    """Import google-genai and return a configured Client, raising clearly if unavailable."""
     try:
-        import google.generativeai as genai  # type: ignore
+        from google import genai  # type: ignore
     except ImportError as exc:
         raise ImportError(
-            "google-generativeai is not installed. "
-            "Run: pip install google-generativeai>=0.8.0"
+            "google-genai is not installed. "
+            "Run: pip install google-genai>=0.2.0"
         ) from exc
 
     api_key = _read_api_key()
@@ -104,8 +104,7 @@ def get_genai():
             "or the GEMINI_API_KEY environment variable."
         )
 
-    genai.configure(api_key=api_key)
-    return genai
+    return genai.Client(api_key=api_key)
 
 
 __all__ = [
@@ -115,5 +114,5 @@ __all__ = [
     "GEMINI_VOICES",
     "VOICE_DISPLAY_NAMES",
     "VOICE_DISPLAY_TO_NAME",
-    "get_genai",
+    "get_gemini_client",
 ]
