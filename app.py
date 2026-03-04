@@ -424,8 +424,8 @@ if mode == "TTS: Script to Audio":
 
         st.markdown("### Audio Files")
 
-        wav_files = {k: v for k, v in results.items() if k.endswith(".wav")}
-        err_files = {k: v for k, v in results.items() if not k.endswith(".wav")}
+        wav_files = {k: v for k, v in results.items() if k.endswith(".mp3")}
+        err_files = {k: v for k, v in results.items() if not k.endswith(".mp3")}
 
         for idx, (filename, audio_bytes) in enumerate(wav_files.items(), start=1):
             chunk_num = idx - 1
@@ -435,7 +435,7 @@ if mode == "TTS: Script to Audio":
                 else (chunks_text[chunk_num] if chunk_num < len(chunks_text) else "")
             )
             with st.expander(f"**{filename}** — {chunk_preview}", expanded=idx <= 5):
-                st.audio(audio_bytes, format="audio/wav")
+                st.audio(audio_bytes, format="audio/mp3")
                 st.download_button(
                     f"⬇ Download {filename}",
                     audio_bytes,
@@ -828,16 +828,16 @@ if package:
 
         if st.session_state.tts_payload:
             wav_items = {
-                k: v for k, v in st.session_state.tts_payload.items() if k.endswith(".wav")
+                k: v for k, v in st.session_state.tts_payload.items() if k.endswith(".mp3")
             }
             err_items = {
-                k: v for k, v in st.session_state.tts_payload.items() if not k.endswith(".wav")
+                k: v for k, v in st.session_state.tts_payload.items() if not k.endswith(".mp3")
             }
             if wav_items:
                 st.info("Preview and download narration segments below.")
                 for filename, payload in wav_items.items():
                     st.markdown(f"**{filename}**")
-                    st.audio(payload, format="audio/wav")
+                    st.audio(payload, format="audio/mp3")
                     st.download_button(
                         f"Download {filename}",
                         payload,

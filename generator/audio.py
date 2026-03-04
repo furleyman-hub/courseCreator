@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import io
-import wave
 from typing import Dict, List
 
 from streamlit.runtime.uploaded_file_manager import UploadedFile
@@ -42,23 +40,36 @@ def transcribe_audio_files(audio_files: List[UploadedFile]) -> str:
 
 
 # -------------------------------------------------------------------
-# WAV encoding helper
+# MP3 encoding helper
 # -------------------------------------------------------------------
 
-def _pcm_to_wav(
+def _pcm_to_mp3(
     pcm_bytes: bytes,
     sample_rate: int = 24000,
     num_channels: int = 1,
-    sample_width: int = 2,
+    bit_rate: int = 128,
 ) -> bytes:
-    """Wrap raw 16-bit PCM bytes in a WAV container."""
-    buf = io.BytesIO()
-    with wave.open(buf, "wb") as wf:
-        wf.setnchannels(num_channels)
-        wf.setsampwidth(sample_width)
-        wf.setframerate(sample_rate)
-        wf.writeframes(pcm_bytes)
-    return buf.getvalue()
+    """
+    Encode raw 16-bit little-endian PCM bytes to MP3 using lameenc.
+    Gemini TTS returns Linear16 PCM; this wraps it in a browser-playable MP3.
+    """
+    try:
+        import lameenc  # type: ignore
+    except ImportError as exc:
+        raise ImportError(
+            "lameenc is required for MP3 encoding. Run: pip install lameenc"
+        ) from exc
+
+    encoder = lameenc.Encoder()
+    encoder.set_bit_rate(bit_rate)
+    encoder.set_in_sample_rate(sample_rate)
+    encoder.set_channels(num_channels)
+    encoder.set_quality(2)  # 2 = highest quality
+    encoder.silence_scale = 1
+
+    mp3_data = encoder.encode(pcm_bytes)
+    mp3_data += encoder.flush()
+    return mp3_data
 
 
 # -------------------------------------------------------------------
@@ -97,7 +108,7 @@ def synthesize_narration_audio(
         if not narration:
             continue
 
-        filename = f"segment_{idx}.wav"
+        filename = f"segment_{idx}.mp3"
 
         try:
             response = genai.models.generate_content(
@@ -116,12 +127,13 @@ def synthesize_narration_audio(
             )
 
             pcm_bytes = response.candidates[0].content.parts[0].inline_data.data
-            audio_payloads[filename] = _pcm_to_wav(pcm_bytes)
+            audio_payloads[filename] = _pcm_to_mp3(pcm_bytes)
 
         except MissingGeminiKeyError:
             raise
         except Exception as exc:
+            error_key = f"segment_{idx}_ERROR.txt"
             error_msg = f"Error generating TTS for segment {idx}: {exc}"
-            audio_payloads[f"{filename}_ERROR.txt"] = error_msg.encode("utf-8")
+            audio_payloads[error_key] = error_msg.encode("utf-8")
 
     return audio_payloads

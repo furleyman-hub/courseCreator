@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import io
-import struct
-import wave
 import zipfile
 from typing import Dict, List
 
@@ -89,16 +87,33 @@ def _parse_docx(uploaded_file: UploadedFile) -> List[str]:
 # Gemini TTS synthesis helpers
 # -------------------------------------------------------------------
 
-def _pcm_to_wav(pcm_bytes: bytes, sample_rate: int = 24000, num_channels: int = 1,
-                sample_width: int = 2) -> bytes:
-    """Wrap raw PCM bytes in a WAV container and return as bytes."""
-    buf = io.BytesIO()
-    with wave.open(buf, "wb") as wf:
-        wf.setnchannels(num_channels)
-        wf.setsampwidth(sample_width)
-        wf.setframerate(sample_rate)
-        wf.writeframes(pcm_bytes)
-    return buf.getvalue()
+def _pcm_to_mp3(
+    pcm_bytes: bytes,
+    sample_rate: int = 24000,
+    num_channels: int = 1,
+    bit_rate: int = 128,
+) -> bytes:
+    """
+    Encode raw 16-bit little-endian PCM bytes to MP3 via lameenc.
+    Gemini TTS returns Linear16 PCM; this produces a browser-playable MP3.
+    """
+    try:
+        import lameenc  # type: ignore
+    except ImportError as exc:
+        raise ImportError(
+            "lameenc is required for MP3 encoding. Run: pip install lameenc"
+        ) from exc
+
+    encoder = lameenc.Encoder()
+    encoder.set_bit_rate(bit_rate)
+    encoder.set_in_sample_rate(sample_rate)
+    encoder.set_channels(num_channels)
+    encoder.set_quality(2)  # 2 = highest quality
+    encoder.silence_scale = 1
+
+    mp3_data = encoder.encode(pcm_bytes)
+    mp3_data += encoder.flush()
+    return mp3_data
 
 
 def _synthesize_one_chunk(
@@ -133,9 +148,9 @@ def _synthesize_one_chunk(
         ),
     )
 
-    # The audio data is in response.candidates[0].content.parts[0].inline_data.data
-    audio_data = response.candidates[0].content.parts[0].inline_data.data
-    return _pcm_to_wav(audio_data)
+    # The audio data is raw 16-bit PCM (Linear16) at 24 kHz
+    pcm_data = response.candidates[0].content.parts[0].inline_data.data
+    return _pcm_to_mp3(pcm_data)
 
 
 # -------------------------------------------------------------------
@@ -173,7 +188,7 @@ def synthesize_chunks(
 
     results: Dict[str, bytes] = {}
     for idx, chunk in enumerate(chunks, start=1):
-        filename = f"chunk_{idx:03d}.wav"
+        filename = f"chunk_{idx:03d}.mp3"
         try:
             wav_bytes = _synthesize_one_chunk(
                 genai, chunk, voice_name, model, style_prompt
@@ -184,7 +199,7 @@ def synthesize_chunks(
         except Exception as exc:
             error_filename = f"chunk_{idx:03d}_ERROR.txt"
             results[error_filename] = (
-                f"Error synthesizing chunk {idx}:\n{exc}\n\nText:\n{chunk}"
+                f"Error synthesizing chunk {idx}:\n{exc}\n\nChunk text:\n{chunk}"
             ).encode("utf-8")
 
     return results
