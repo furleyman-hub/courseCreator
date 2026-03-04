@@ -10,6 +10,8 @@ from streamlit.runtime.uploaded_file_manager import UploadedFile
 
 from .openai_client import (
     TTS_MODEL,
+    TTS_MODEL_HD,
+    OPENAI_TTS_VOICES_HD_COMPATIBLE,
     MissingOpenAIKeyError,
     get_client,
 )
@@ -96,13 +98,21 @@ def _synthesize_one_chunk(
     """
     Call OpenAI TTS for a single text chunk.
     Returns MP3 bytes directly (no PCM conversion needed).
+
+    If the chosen voice is only available on gpt-4o-mini-tts but the caller
+    requested tts-1-hd, we automatically upgrade the model so the call succeeds.
     """
+    # Voices not supported by tts-1/tts-1-hd must use gpt-4o-mini-tts
+    if model == TTS_MODEL_HD and voice not in OPENAI_TTS_VOICES_HD_COMPATIBLE:
+        model = TTS_MODEL
+
     kwargs: dict = dict(model=model, voice=voice, input=text, response_format="mp3")
-    # gpt-4o-mini-tts supports an optional style instructions parameter
+    # gpt-4o-mini-tts supports an optional speaking-style instructions parameter
     if style_prompt.strip() and model == TTS_MODEL:
         kwargs["instructions"] = style_prompt.strip()
+
     response = client.audio.speech.create(**kwargs)
-    return response.content
+    return response.read()
 
 
 # -------------------------------------------------------------------

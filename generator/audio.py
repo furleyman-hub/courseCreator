@@ -5,7 +5,14 @@ from typing import Dict, List
 from streamlit.runtime.uploaded_file_manager import UploadedFile
 
 from .models import VideoScript
-from .openai_client import get_client, TRANSCRIBE_MODEL, TTS_MODEL, MissingOpenAIKeyError
+from .openai_client import (
+    get_client,
+    TRANSCRIBE_MODEL,
+    TTS_MODEL,
+    TTS_MODEL_HD,
+    OPENAI_TTS_VOICES_HD_COMPATIBLE,
+    MissingOpenAIKeyError,
+)
 
 
 # -------------------------------------------------------------------
@@ -69,13 +76,17 @@ def synthesize_narration_audio(
 
         filename = f"segment_{idx}.mp3"
         try:
+            effective_model = model
+            # Upgrade to gpt-4o-mini-tts if the chosen voice isn't HD-compatible
+            if model == TTS_MODEL_HD and voice_display not in OPENAI_TTS_VOICES_HD_COMPATIBLE:
+                effective_model = TTS_MODEL
             response = client.audio.speech.create(
-                model=model,
+                model=effective_model,
                 voice=voice_display,
                 input=narration,
                 response_format="mp3",
             )
-            audio_payloads[filename] = response.content
+            audio_payloads[filename] = response.read()
         except MissingOpenAIKeyError:
             raise
         except Exception as exc:

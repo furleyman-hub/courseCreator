@@ -27,6 +27,7 @@ from generator import (
     synthesize_chunks,
     chunks_to_zip,
     OPENAI_TTS_VOICES,
+    OPENAI_TTS_VOICES_HD_COMPATIBLE,
     TTS_MODEL,
     TTS_MODEL_HD,
 )
@@ -233,25 +234,40 @@ def _build_speakable_narration(script: VideoScript) -> str:
 # -------------------------------------------------------------------
 
 def _tts_settings_widgets(key_prefix: str) -> tuple[str, str]:
-    """Render voice + model selectors; return (voice_display, model)."""
-    col_voice, col_model = st.columns([2, 1])
-    with col_voice:
-        voice = st.selectbox(
-            "Voice",
-            OPENAI_TTS_VOICES,
-            index=OPENAI_TTS_VOICES.index("nova"),
-            key=f"{key_prefix}_voice",
-            help="Choose an OpenAI TTS voice.",
-        )
+    """Render voice + model selectors; return (voice_display, model).
+
+    Widget keys use an 'oai2_' infix to avoid conflicts with stale Streamlit
+    session state from previous versions of this app.
+    """
+    col_model, col_voice = st.columns([1, 2])
     with col_model:
         model_choice = st.radio(
             "TTS Quality",
             ["Standard (fast, style support)", "HD (highest quality)"],
             index=0,
-            key=f"{key_prefix}_model",
-            help="Standard uses gpt-4o-mini-tts and supports the speaking style field. HD uses tts-1-hd for highest audio quality.",
+            key=f"{key_prefix}_oai2_model",
+            help=(
+                "Standard uses gpt-4o-mini-tts — supports speaking-style instructions "
+                "and all 13 voices. HD uses tts-1-hd — highest audio quality, "
+                "9 voices supported."
+            ),
         )
     model = TTS_MODEL if model_choice == "Standard (fast, style support)" else TTS_MODEL_HD
+    # HD model only supports the 9 core voices; Standard supports all 13
+    available_voices = OPENAI_TTS_VOICES if model == TTS_MODEL else OPENAI_TTS_VOICES_HD_COMPATIBLE
+    default_voice = "nova"
+    default_idx = available_voices.index(default_voice) if default_voice in available_voices else 0
+    with col_voice:
+        voice = st.selectbox(
+            "Voice",
+            available_voices,
+            index=default_idx,
+            key=f"{key_prefix}_oai2_voice_{model}",
+            help=(
+                "Standard model: 13 voices including marin and cedar (OpenAI's recommended). "
+                "HD model: 9 voices."
+            ),
+        )
     return voice, model
 
 
@@ -801,7 +817,7 @@ if package:
                     key="heygen_video_url_display",
                 )
 
-        # ── Gemini TTS narration ──────────────────────────────────
+        # ── OpenAI TTS narration ──────────────────────────────────
         st.markdown("---")
         st.subheader("Narration Audio (OpenAI TTS)")
 

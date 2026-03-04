@@ -29,7 +29,13 @@ from .extract_text import extract_text_from_files
 from .audio import transcribe_audio_files, synthesize_narration_audio
 from .batch_processor import BatchProcessor
 from .standalone_tts import parse_document_to_chunks, synthesize_chunks, chunks_to_zip
-from .openai_client import OPENAI_TTS_VOICES, TTS_MODEL, TTS_MODEL_HD
+from .openai_client import (
+    OPENAI_TTS_VOICES,
+    OPENAI_TTS_VOICES_HD_COMPATIBLE,
+    OPENAI_TTS_VOICES_MINI_ONLY,
+    TTS_MODEL,
+    TTS_MODEL_HD,
+)
 
 
 __all__ = [
@@ -57,6 +63,8 @@ __all__ = [
     "synthesize_chunks",
     "chunks_to_zip",
     "OPENAI_TTS_VOICES",
+    "OPENAI_TTS_VOICES_HD_COMPATIBLE",
+    "OPENAI_TTS_VOICES_MINI_ONLY",
     "TTS_MODEL",
     "TTS_MODEL_HD",
 ]
