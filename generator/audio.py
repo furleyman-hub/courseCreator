@@ -66,7 +66,6 @@ def _pcm_to_mp3(
     encoder.set_in_sample_rate(sample_rate)
     encoder.set_channels(num_channels)
     encoder.set_quality(2)  # 2 = highest quality
-    encoder.silence_scale = 1
 
     mp3_data = encoder.encode(pcm_bytes)
     mp3_data += encoder.flush()
