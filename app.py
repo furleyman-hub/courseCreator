@@ -388,7 +388,7 @@ if mode == "TTS: Script to Audio":
 
             for i, chunk in enumerate(chunks, start=1):
                 progress.progress(i / len(chunks), text=f"Synthesizing chunk {i} of {len(chunks)}…")
-                filename = f"chunk_{i:03d}.wav"
+                filename = f"chunk_{i:03d}.mp3"
                 try:
                     chunk_result = synthesize_chunks(
                         [chunk],
