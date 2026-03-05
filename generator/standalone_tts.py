@@ -1,123 +1,84 @@
-"""Standalone TTS: parse a document into chunks and synthesize each one."""
+"""Standalone TTS: parse a document into text chunks and synthesize each to MP3."""
 
 from __future__ import annotations
 
 import io
+import re
 import zipfile
 from typing import Dict, List
 
-from streamlit.runtime.uploaded_file_manager import UploadedFile
+from openai import OpenAI
 
-from .openai_client import (
-    TTS_MODEL,
-    TTS_MODEL_HD,
-    OPENAI_TTS_VOICES_HD_COMPATIBLE,
-    MissingOpenAIKeyError,
-    get_client,
-)
+from .openai_client import get_client, TTS_MODEL, TTS_MODEL_HD, OPENAI_TTS_VOICES_HD_COMPATIBLE
 
 
-# -------------------------------------------------------------------
-# Document → text chunks
-# -------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Document parsing
+# ---------------------------------------------------------------------------
 
-def parse_document_to_chunks(uploaded_file: UploadedFile) -> List[str]:
+def parse_document_to_chunks(uploaded_file) -> List[str]:
+    """Parse an uploaded .txt, .md, or .docx file into non-empty text chunks.
+
+    Text/Markdown: split on blank lines.
+    DOCX: blank paragraphs act as separators; adjacent non-blank paragraphs are
+          joined into a single chunk.
     """
-    Parse an uploaded .txt, .md, or .docx file into a list of text chunks.
+    name = uploaded_file.name.lower()
 
-    Chunks are separated by blank lines (double newline) for text/markdown files,
-    and by blank paragraph objects for DOCX files.  Empty chunks are dropped.
-    """
-    filename = uploaded_file.name.lower()
-
-    if filename.endswith(".docx"):
+    if name.endswith(".docx"):
         return _parse_docx(uploaded_file)
 
-    # .txt or .md — read as UTF-8 text
     raw = uploaded_file.read()
-    try:
-        text = raw.decode("utf-8")
-    except UnicodeDecodeError:
-        text = raw.decode("latin-1", errors="replace")
-
-    return _split_by_blank_lines(text)
+    text = raw.decode("utf-8") if isinstance(raw, bytes) else raw
+    return _split_blank_lines(text)
 
 
-def _split_by_blank_lines(text: str) -> List[str]:
-    """Split text on one-or-more blank lines, stripping each chunk."""
-    import re
-    # Normalise line endings
+def _split_blank_lines(text: str) -> List[str]:
     text = text.replace("\r\n", "\n").replace("\r", "\n")
-    # Split on blank lines (two or more consecutive newlines)
-    raw_chunks = re.split(r"\n{2,}", text)
-    return [c.strip() for c in raw_chunks if c.strip()]
+    return [c.strip() for c in re.split(r"\n{2,}", text) if c.strip()]
 
 
-def _parse_docx(uploaded_file: UploadedFile) -> List[str]:
-    """Parse a DOCX file: blank paragraphs are separators; contiguous non-blank
-    paragraphs are joined into a single chunk."""
-    try:
-        from docx import Document  # type: ignore
-    except ImportError as exc:
-        raise ImportError(
-            "python-docx is required to parse .docx files. "
-            "Run: pip install python-docx"
-        ) from exc
-
+def _parse_docx(uploaded_file) -> List[str]:
+    from docx import Document  # type: ignore
     doc = Document(io.BytesIO(uploaded_file.read()))
-    chunks: List[str] = []
-    current: List[str] = []
-
+    chunks, current = [], []
     for para in doc.paragraphs:
-        text = para.text.strip()
-        if text:
-            current.append(text)
-        else:
-            if current:
-                chunks.append("\n".join(current))
-                current = []
-
-    # Flush the last block
+        line = para.text.strip()
+        if line:
+            current.append(line)
+        elif current:
+            chunks.append("\n".join(current))
+            current = []
     if current:
         chunks.append("\n".join(current))
+    return chunks
 
-    return [c for c in chunks if c]
 
+# ---------------------------------------------------------------------------
+# OpenAI TTS synthesis
+# ---------------------------------------------------------------------------
 
-# -------------------------------------------------------------------
-# OpenAI TTS synthesis helpers
-# -------------------------------------------------------------------
-
-def _synthesize_one_chunk(
-    client,
-    text: str,
-    voice: str,
-    model: str,
-    style_prompt: str = "",
-) -> bytes:
-    """
-    Call OpenAI TTS for a single text chunk.
-    Returns MP3 bytes directly (no PCM conversion needed).
-
-    If the chosen voice is only available on gpt-4o-mini-tts but the caller
-    requested tts-1-hd, we automatically upgrade the model so the call succeeds.
-    """
-    # Voices not supported by tts-1/tts-1-hd must use gpt-4o-mini-tts
+def _call_tts(client: OpenAI, text: str, voice: str, model: str,
+              style: str = "") -> bytes:
+    """Make a single OpenAI TTS call and return raw MP3 bytes."""
+    # tts-1-hd does not support voices that only exist on gpt-4o-mini-tts
     if model == TTS_MODEL_HD and voice not in OPENAI_TTS_VOICES_HD_COMPATIBLE:
         model = TTS_MODEL
 
-    kwargs: dict = dict(model=model, voice=voice, input=text, response_format="mp3")
-    # gpt-4o-mini-tts supports an optional speaking-style instructions parameter
-    if style_prompt.strip() and model == TTS_MODEL:
-        kwargs["instructions"] = style_prompt.strip()
+    params: dict = {
+        "model": model,
+        "voice": voice,
+        "input": text,
+        "response_format": "mp3",
+    }
+    # speaking-style instructions are only supported by gpt-4o-mini-tts
+    if style.strip() and model == TTS_MODEL:
+        params["instructions"] = style.strip()
 
-    response = client.audio.speech.create(**kwargs)
+    response = client.audio.speech.create(**params)
+    # .read() returns the complete response body as bytes
     return response.read()
 
-
-# -------------------------------------------------------------------
-# Public API
-# -------------------------------------------------------------------
 
 def synthesize_chunks(
     chunks: List[str],
@@ -125,58 +86,34 @@ def synthesize_chunks(
     model: str = TTS_MODEL,
     style_prompt: str = "",
 ) -> Dict[str, bytes]:
-    """
-    Synthesize a list of text chunks to MP3 using OpenAI TTS.
+    """Synthesize a list of text chunks to MP3 files using OpenAI TTS.
 
-    Parameters
-    ----------
-    chunks : list[str]
-        Text segments to convert.
-    voice_display : str
-        OpenAI voice name (e.g. "nova", "alloy").
-    model : str
-        OpenAI TTS model. gpt-4o-mini-tts supports style instructions;
-        tts-1-hd gives highest audio quality.
-    style_prompt : str
-        Optional speaking-style instruction (gpt-4o-mini-tts only).
-
-    Returns
-    -------
-    dict[str, bytes]
-        Mapping of filename → MP3 bytes (or error .txt bytes on failure).
+    Returns a dict mapping filename → bytes.
+    On per-chunk failure the entry is named ``chunk_NNN_ERROR.txt`` and
+    its value is the UTF-8-encoded error message.
     """
     client = get_client()
-
     results: Dict[str, bytes] = {}
-    for idx, chunk in enumerate(chunks, start=1):
-        filename = f"chunk_{idx:03d}.mp3"
+
+    for i, chunk in enumerate(chunks, start=1):
         try:
-            mp3_bytes = _synthesize_one_chunk(
-                client, chunk, voice_display, model, style_prompt
-            )
-            results[filename] = mp3_bytes
-        except MissingOpenAIKeyError:
-            raise
+            mp3 = _call_tts(client, chunk, voice_display, model, style_prompt)
+            results[f"chunk_{i:03d}.mp3"] = mp3
         except Exception as exc:
-            error_filename = f"chunk_{idx:03d}_ERROR.txt"
-            results[error_filename] = (
-                f"Error synthesizing chunk {idx}:\n{exc}\n\nChunk text:\n{chunk}"
+            results[f"chunk_{i:03d}_ERROR.txt"] = (
+                f"TTS error on chunk {i}:\n{exc}\n\nText:\n{chunk}"
             ).encode("utf-8")
 
     return results
 
 
 def chunks_to_zip(audio_dict: Dict[str, bytes]) -> bytes:
-    """Package a {filename: bytes} dict into a ZIP archive and return the bytes."""
+    """Pack a ``{filename: bytes}`` mapping into an in-memory ZIP archive."""
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-        for filename, data in audio_dict.items():
-            zf.writestr(filename, data)
+        for name, data in audio_dict.items():
+            zf.writestr(name, data)
     return buf.getvalue()
 
 
-__all__ = [
-    "parse_document_to_chunks",
-    "synthesize_chunks",
-    "chunks_to_zip",
-]
+__all__ = ["parse_document_to_chunks", "synthesize_chunks", "chunks_to_zip"]
